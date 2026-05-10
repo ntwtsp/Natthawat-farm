@@ -456,13 +456,16 @@ function calcEntry(entry, entries) {
 
 function batchStats(batch) {
   const entries = batch.entries;
-  let totalRcv=0, totalUsed=0, usedArr=[];
+  let totalRcv=0, usedArr=[];
   entries.forEach(e => totalRcv += (e.received||0));
   for (let i=1;i<entries.length;i++){
     const p=entries[i-1],c=entries[i];
     const u=(p.w1||0)+(p.w2||0)+(c.received||0)-((c.w1||0)+(c.w2||0));
-    if(u>0){totalUsed+=u;usedArr.push(u);}
+    if(u>0) usedArr.push(u);
   }
+  const last = entries[entries.length-1];
+  const currentRemaining = last ? (last.w1||0)+(last.w2||0) : 0;
+  const totalUsed = totalRcv - currentRemaining;
   return { totalRcv, totalUsed, days:entries.length,
     avgPerDay: usedArr.length?usedArr.reduce((a,b)=>a+b)/usedArr.length:0 };
 }
