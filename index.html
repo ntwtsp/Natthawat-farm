@@ -419,7 +419,7 @@
     <h3 id="expModalTitle">➕ เพิ่มค่าใช้จ่าย</h3>
     <div class="fs" id="expMonthWrap" style="display:none"><label>เดือน</label><input type="month" id="expMonth" /></div>
     <div class="fs" id="expDateWrap"><label>วันที่</label><input type="date" id="expDate" /></div>
-    <div class="fs" id="expNameWrap" style="display:none"><label>รายการ</label><input type="text" id="expName" placeholder="เช่น ค่าวัคซีน, ค่าซ่อมเครื่อง..." /></div>
+    <div class="fs" id="expNameWrap" style="display:none"><label>รายการ</label><input type="text" id="expName" placeholder="เช่น ค่าเครื่องจักร, ค่าแรงภายนอก..." /></div>
     <div class="fs"><label>จำนวนเงิน (บาท)</label><input type="number" id="expAmount" placeholder="0" min="0" inputmode="decimal" /></div>
     <div class="fs"><label>หมายเหตุ (ไม่บังคับ)</label><textarea id="expNote" placeholder="รายละเอียดเพิ่มเติม..."></textarea></div>
     <button class="mbtn pri" onclick="saveExpense()">💾 บันทึก</button>
@@ -1047,10 +1047,11 @@ function confirmNewBatch(){
 
 // ─── EXPENSE ───────────────────────────────────────────────────────────────
 const EXP_CFG = {
-  electricity: {icon:'💡', label:'ค่าไฟ',    color:'#fbbf24', bg:'#fffbeb'},
-  fuel:        {icon:'⛽', label:'ค่าน้ำมัน', color:'#f97316', bg:'#fff7ed'},
-  water:       {icon:'💧', label:'ค่าน้ำ',   color:'#38bdf8', bg:'#f0f9ff'},
-  other:       {icon:'📋', label:'อื่นๆ',    color:'#8b5cf6', bg:'#faf5ff'},
+  electricity: {icon:'💡', label:'ค่าไฟ',    color:'#fbbf24', bg:'#fffbeb', monthly:true},
+  fuel:        {icon:'⛽', label:'ค่าน้ำมัน', color:'#f97316', bg:'#fff7ed', monthly:false},
+  water:       {icon:'💧', label:'ค่าน้ำ',   color:'#38bdf8', bg:'#f0f9ff', monthly:false},
+  labor:       {icon:'👷', label:'ค่าแรง',   color:'#10b981', bg:'#ecfdf5', monthly:true},
+  other:       {icon:'📋', label:'อื่นๆ',    color:'#8b5cf6', bg:'#faf5ff', monthly:false},
 };
 let _expType = 'electricity';
 
@@ -1061,7 +1062,7 @@ function renderExpense() {
   const db=loadDB(), batch=getActiveBatch(db);
   const records = (batch?.expenseRecords || []);
 
-  const totals = {electricity:0, fuel:0, water:0, other:0};
+  const totals = {electricity:0, fuel:0, water:0, labor:0, other:0};
   records.forEach(r => { if(totals[r.type]!==undefined) totals[r.type] += r.amount||0; });
   const grandTotal = Object.values(totals).reduce((a,b)=>a+b, 0);
 
@@ -1092,7 +1093,7 @@ function renderExpense() {
       ${items.length ? items.map(r=>`
         <div class="exp-item">
           <div>
-            <div class="ed">${r.type==='electricity'?fmtMonth(r.period):fmtDate(r.date)}${r.name?` · ${r.name}`:''}</div>
+            <div class="ed">${EXP_CFG[r.type]?.monthly?fmtMonth(r.period):fmtDate(r.date)}${r.name?` · ${r.name}`:''}</div>
             ${r.note?`<div style="font-size:10px;color:var(--gray);margin-top:1px">${r.note}</div>`:''}
           </div>
           <div style="display:flex;align-items:center;gap:8px">
@@ -1109,10 +1110,10 @@ function openExpenseModal(type) {
   _expType = type;
   const cfg = EXP_CFG[type];
   document.getElementById('expModalTitle').textContent = `${cfg.icon} เพิ่ม${cfg.label}`;
-  const isElec = type === 'electricity';
+  const isMonthly = !!cfg.monthly;
   const isOther = type === 'other';
-  document.getElementById('expMonthWrap').style.display = isElec ? 'block' : 'none';
-  document.getElementById('expDateWrap').style.display  = isElec ? 'none' : 'block';
+  document.getElementById('expMonthWrap').style.display = isMonthly ? 'block' : 'none';
+  document.getElementById('expDateWrap').style.display  = isMonthly ? 'none' : 'block';
   document.getElementById('expNameWrap').style.display  = isOther ? 'block' : 'none';
   const now = new Date();
   document.getElementById('expMonth').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
@@ -1132,13 +1133,14 @@ function saveExpense() {
   const date   = document.getElementById('expDate').value;
   const name   = document.getElementById('expName').value.trim();
   const note   = document.getElementById('expNote').value.trim();
-  if(isElec && !period){showToast('⚠️ เลือกเดือนด้วย');return;}
-  if(!isElec && !date){showToast('⚠️ เลือกวันที่ด้วย');return;}
+  const isMonthly2 = EXP_CFG[_expType]?.monthly;
+  if(isMonthly2 && !period){showToast('⚠️ เลือกเดือนด้วย');return;}
+  if(!isMonthly2 && !date){showToast('⚠️ เลือกวันที่ด้วย');return;}
   if(isOther && !name){showToast('⚠️ ใส่รายการด้วย');return;}
   const db=loadDB(), batch=getActiveBatch(db);
   if(!batch.expenseRecords) batch.expenseRecords=[];
   const rec = {id:Date.now(), type:_expType, amount, note};
-  if(isElec) rec.period = period; else rec.date = date;
+  if(isMonthly2) rec.period = period; else rec.date = date;
   if(isOther) rec.name = name;
   batch.expenseRecords.push(rec);
   saveDB(db);
