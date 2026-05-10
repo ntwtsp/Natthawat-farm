@@ -26,7 +26,7 @@
     body{font-family:-apple-system,'Sarabun',sans-serif;background:#e8f5e9;min-height:100dvh;color:#1a2e1a;overscroll-behavior:none}
 
     /* HEADER */
-    .hdr{background:linear-gradient(135deg,#14532d,#15803d 55%,#16a34a);padding:calc(var(--st) - 10px) 16px 12px;color:#fff;position:sticky;top:0;z-index:100;box-shadow:0 2px 14px rgba(0,0,0,.18)}
+    .hdr{background:linear-gradient(135deg,#14532d,#15803d 55%,#16a34a);padding:calc(var(--st) + 16px) 16px 14px;color:#fff;position:sticky;top:0;z-index:100;box-shadow:0 2px 14px rgba(0,0,0,.18)}
     .hdr-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
     .hdr h1{font-size:18px;font-weight:700}
     .hdr-sub{font-size:11px;opacity:.75;margin-top:1px}
@@ -192,6 +192,34 @@
     .empty .ei{font-size:40px;margin-bottom:8px}
     .empty p{font-size:13px}
 
+    /* WEIGHT & FCR */
+    .wf-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+    .wf-hd-title{font-size:13px;font-weight:700;color:#374151}
+    .wf-add-btn{padding:5px 12px;border-radius:8px;border:none;background:var(--gp);color:var(--gd);font-size:12px;font-weight:600;font-family:inherit;cursor:pointer}
+    .wf-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px}
+    .wf-item .wfl{font-size:10px;color:var(--gray);margin-bottom:2px}
+    .wf-item .wfv{font-size:16px;font-weight:700;color:#111827}
+    .wf-item .wfv.gc{color:var(--g)}.wf-item .wfv.yc{color:var(--y)}
+    .fcr-wrap{margin-top:14px;padding-top:14px;border-top:1px solid #f3f4f6}
+    .fcr-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+    .fcr-title{font-size:13px;font-weight:700;color:#374151}
+    .fcr-badge{font-size:11px;font-weight:600;padding:4px 10px;border-radius:8px}
+    .fcr-badge.good{background:#dcfce7;color:#15803d}
+    .fcr-badge.ok{background:#fef3c7;color:#92400e}
+    .fcr-badge.bad{background:#fee2e2;color:#991b1b}
+    .fcr-badge.none{background:#f3f4f6;color:#6b7280}
+    .fcr-num-row{display:flex;align-items:flex-end;gap:6px;margin-bottom:10px}
+    .fcr-num{font-size:48px;font-weight:800;line-height:1;color:#111827}
+    .fcr-num-sub{font-size:12px;color:var(--gray);padding-bottom:8px}
+    .fcr-detail{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .fcr-di .fdl{font-size:10px;color:var(--gray);margin-bottom:1px}
+    .fcr-di .fdv{font-size:13px;font-weight:600;color:#111827}
+    .wt-history{margin-top:10px}
+    .wt-item{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f9fafb}
+    .wt-item:last-child{border-bottom:none}
+    .wt-item .wd{font-size:12px;color:var(--gray)}
+    .wt-item .wv{font-size:13px;font-weight:600}
+
     /* TOAST */
     .toast{position:fixed;bottom:calc(76px + var(--sb) + 10px);left:50%;transform:translateX(-50%) translateY(20px);background:#111827;color:#fff;padding:10px 20px;border-radius:99px;font-size:13px;font-weight:500;opacity:0;transition:all .3s;z-index:300;pointer-events:none;white-space:nowrap}
     .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -237,6 +265,8 @@
 <!-- PIGS PAGE -->
 <div id="page-pigs" class="page">
   <div id="pigHero"></div>
+
+  <div id="weightFcrSection"></div>
 
   <div class="stitle">บันทึกการเปลี่ยนแปลง</div>
   <div class="evt-btns">
@@ -327,6 +357,21 @@
   </div>
 </div>
 
+<!-- MODAL: WEIGHT -->
+<div class="overlay" id="ovWeight" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <h3>⚖️ บันทึกน้ำหนักหมู</h3>
+    <div class="fs"><label>วันที่</label><input type="date" id="wDate" /></div>
+    <div class="ig">
+      <div class="fs"><label>น้ำหนักรวม (กก.)</label><input type="number" id="wTotal" placeholder="0" min="0" inputmode="decimal" /></div>
+      <div class="fs"><label>จำนวนตัวที่ชั่ง</label><input type="number" id="wCount" placeholder="0" min="0" inputmode="numeric" /></div>
+    </div>
+    <div class="fs"><label>หมายเหตุ (ไม่บังคับ)</label><textarea id="wNote" placeholder="เช่น ชั่งเฉพาะตัวโต..."></textarea></div>
+    <button class="mbtn pri" onclick="saveWeight()">💾 บันทึก</button>
+    <button class="mbtn cnl" onclick="document.getElementById('ovWeight').classList.remove('open')">ยกเลิก</button>
+  </div>
+</div>
+
 <!-- MODAL: PIG EVENT -->
 <div class="overlay" id="ovPig" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal">
@@ -400,14 +445,14 @@ function loadDB() {
     batches: [{
       id: 1, name: 'รุ่น 1', startDate: '2026-02-23',
       entries: SEED_FEED.map((e, i) => ({ id: i+1, ...e })),
-      pigEvents: []
+      pigEvents: [], weightRecords: []
     }]
   };
   // migrate from v2
   try {
     const v2 = JSON.parse(localStorage.getItem('pigFeedData_v2'));
     if (v2 && v2.batches) {
-      initial.batches = v2.batches.map(b => ({ ...b, pigEvents: b.pigEvents || [] }));
+      initial.batches = v2.batches.map(b => ({ ...b, pigEvents: b.pigEvents || [], weightRecords: b.weightRecords || [] }));
       initial.activeBatchId = v2.activeBatchId;
     }
   } catch {}
@@ -588,6 +633,8 @@ function renderPigs() {
       <div class="ph-item"><div class="pi-val">${fmt(totals['คัดทิ้ง'])}</div><div class="pi-lbl">คัดทิ้ง</div></div>
     </div></div>`;
 
+  renderWeightFcr();
+
   if(!evts.length){
     document.getElementById('pigEventList').innerHTML='<div class="empty"><div class="ei">🐷</div><p>กดปุ่มด้านบนเพื่อบันทึก</p></div>'; return;
   }
@@ -601,6 +648,106 @@ function renderPigs() {
       <button onclick="deletePigEvent(${e.id})" style="margin-left:4px;width:24px;height:24px;border-radius:6px;border:none;background:#fee2e2;color:#dc2626;cursor:pointer;font-size:11px;flex-shrink:0">✕</button>
     </div>`;
   }).join('');
+}
+
+// ─── WEIGHT & FCR ──────────────────────────────────────────────────────────
+function renderWeightFcr() {
+  const db=loadDB(), batch=getActiveBatch(db);
+  const wr=(batch?.weightRecords||[]);
+  const bs=batchStats(batch||{entries:[]});
+  const first=wr[0], last=wr[wr.length-1];
+
+  // FCR
+  let fcrVal=null, fcrCls='none', fcrLabel='ยังไม่มีข้อมูล';
+  if(first && last && first.id!==last.id) {
+    const gain=last.totalWeight - first.totalWeight;
+    if(gain>0){
+      fcrVal=bs.totalUsed/gain;
+      if(fcrVal<2.5){fcrCls='good';fcrLabel='ดีมาก';}
+      else if(fcrVal<3.0){fcrCls='ok';fcrLabel='ปกติ';}
+      else{fcrCls='bad';fcrLabel='ควรปรับปรุง';}
+    }
+  }
+
+  // latest weight
+  const latestW=last?last.totalWeight:null;
+  const latestPigs=last?last.pigCount:null;
+  const avgW=latestW&&latestPigs?latestW/latestPigs:null;
+  const gainW=first&&last&&first.id!==last.id?last.totalWeight-first.totalWeight:null;
+
+  const recentWr=wr.slice(-3).reverse();
+
+  document.getElementById('weightFcrSection').innerHTML=`
+  <div class="card" style="margin-bottom:12px">
+    <div class="wf-hd">
+      <div class="wf-hd-title">⚖️ น้ำหนักหมู</div>
+      <button class="wf-add-btn" onclick="openWeightModal()">+ บันทึกน้ำหนัก</button>
+    </div>
+    <div class="wf-grid">
+      <div class="wf-item"><div class="wfl">น้ำหนักรวมล่าสุด</div><div class="wfv gc">${latestW!=null?fmt(latestW)+' กก.':'—'}</div></div>
+      <div class="wf-item"><div class="wfl">เฉลี่ย/ตัว</div><div class="wfv">${avgW!=null?avgW.toFixed(1)+' กก.':'—'}</div></div>
+      <div class="wf-item"><div class="wfl">น้ำหนักเพิ่ม</div><div class="wfv ${gainW!=null&&gainW>0?'gc':'yc'}">${gainW!=null?(gainW>0?'+':'')+fmt(gainW)+' กก.':'—'}</div></div>
+    </div>
+    ${recentWr.length?`<div class="wt-history">${recentWr.map(w=>`
+      <div class="wt-item">
+        <div class="wd">${fmtDate(w.date)} · ${fmt(w.pigCount)} ตัว</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="wv">${fmt(w.totalWeight)} กก. <span style="font-size:10px;color:var(--gray)">(${(w.totalWeight/w.pigCount).toFixed(1)} กก./ตัว)</span></div>
+          <button onclick="deleteWeight(${w.id})" style="width:22px;height:22px;border-radius:5px;border:none;background:#fee2e2;color:#dc2626;cursor:pointer;font-size:10px;flex-shrink:0">✕</button>
+        </div>
+      </div>`).join('')}</div>`:''}
+
+    <div class="fcr-wrap">
+      <div class="fcr-row">
+        <div class="fcr-title">📐 FCR (Feed Conversion Ratio)</div>
+        <span class="fcr-badge ${fcrCls}">${fcrLabel}</span>
+      </div>
+      <div class="fcr-num-row">
+        <div class="fcr-num" style="color:${fcrCls==='good'?'#15803d':fcrCls==='ok'?'#d97706':fcrCls==='bad'?'#dc2626':'#9ca3af'}">${fcrVal!=null?fcrVal.toFixed(2):'—'}</div>
+        <div class="fcr-num-sub">กก.อาหาร / กก.น้ำหนักที่เพิ่ม</div>
+      </div>
+      <div class="fcr-detail">
+        <div class="fcr-di"><div class="fdl">อาหารที่ใช้ไปทั้งหมด</div><div class="fdv">${fmt(bs.totalUsed)} กก.</div></div>
+        <div class="fcr-di"><div class="fdl">น้ำหนักที่เพิ่มขึ้น</div><div class="fdv">${gainW!=null?fmt(gainW)+' กก.':'ยังไม่มีข้อมูล'}</div></div>
+      </div>
+      <div style="margin-top:8px;padding:8px;background:#f9fafb;border-radius:8px;font-size:10px;color:var(--gray);line-height:1.6">
+        เกณฑ์ FCR หมู: <span style="color:#15803d;font-weight:600">&lt;2.5 ดีมาก</span> · <span style="color:#d97706;font-weight:600">2.5–3.0 ปกติ</span> · <span style="color:#dc2626;font-weight:600">&gt;3.0 ควรปรับ</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function openWeightModal() {
+  document.getElementById('wDate').value=new Date().toISOString().split('T')[0];
+  document.getElementById('wTotal').value='';
+  document.getElementById('wCount').value='';
+  document.getElementById('wNote').value='';
+  document.getElementById('ovWeight').classList.add('open');
+}
+
+function saveWeight() {
+  const date=document.getElementById('wDate').value;
+  const totalWeight=parseFloat(document.getElementById('wTotal').value);
+  const pigCount=parseInt(document.getElementById('wCount').value);
+  const note=document.getElementById('wNote').value.trim();
+  if(!date){showToast('⚠️ เลือกวันที่ด้วย');return;}
+  if(isNaN(totalWeight)||totalWeight<=0){showToast('⚠️ ใส่น้ำหนักรวมด้วย');return;}
+  if(isNaN(pigCount)||pigCount<=0){showToast('⚠️ ใส่จำนวนตัวด้วย');return;}
+  const db=loadDB(), batch=getActiveBatch(db);
+  if(!batch.weightRecords) batch.weightRecords=[];
+  batch.weightRecords.push({id:Date.now(),date,totalWeight,pigCount,note});
+  batch.weightRecords.sort((a,b)=>new Date(a.date)-new Date(b.date));
+  saveDB(db);
+  document.getElementById('ovWeight').classList.remove('open');
+  showToast('✅ บันทึกน้ำหนักแล้ว');
+  renderWeightFcr();
+}
+
+function deleteWeight(id) {
+  if(!confirm('ลบรายการนี้?'))return;
+  const db=loadDB(), batch=getActiveBatch(db);
+  batch.weightRecords=(batch.weightRecords||[]).filter(w=>w.id!==id);
+  saveDB(db); renderWeightFcr(); showToast('🗑️ ลบแล้ว');
 }
 
 // ─── PIG MODAL ─────────────────────────────────────────────────────────────
