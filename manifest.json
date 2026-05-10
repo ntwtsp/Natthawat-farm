@@ -2,7 +2,7 @@
   "name": "บันทึกอาหารหมู",
   "short_name": "อาหารหมู",
   "description": "บันทึกน้ำหนักและการใช้อาหารหมูประจำวัน",
-  "start_url": "/",
+  "start_url": "/Natthawat-farm/",
   "display": "standalone",
   "background_color": "#f0fdf4",
   "theme_color": "#16a34a",
