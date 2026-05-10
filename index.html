@@ -610,9 +610,15 @@ function renderHome() {
     const d=new Date(e.date), c2=calcEntry(e,entries);
     let cls='bg',dStr='—';
     if(c2.days!=null){dStr=c2.days.toFixed(1)+' วัน';if(c2.days<1.5)cls='br';else if(c2.days<3)cls='by';}
+    const t1str=c2.usedT1!=null&&c2.usedT1>0?fmt(c2.usedT1):'—';
+    const t2str=c2.usedT2!=null&&c2.usedT2>0?fmt(c2.usedT2):'—';
     return`<div class="erow"><div class="edtb"><div class="day">${d.getDate()}</div><div class="mon">${MONTHS[d.getMonth()]}</div></div>
-      <div class="einf"><div class="w">ถัง1: ${fmt(e.w1)} | ถัง2: ${fmt(e.w2)}</div>
-      <div class="s">คงเหลือ ${fmt(c2.remaining)} กก.${e.received?` · รับเข้า ${fmt(e.received)} กก.`:''}</div></div>
+      <div class="einf">
+        <div class="w">คงเหลือ ${fmt(c2.remaining)} กก.${e.received?` · 🚛 ${fmt(e.received)} กก.`:''}</div>
+        <div class="s" style="display:flex;gap:10px;margin-top:2px">
+          <span>ถัง1 ใช้ <b>${t1str}</b></span><span>ถัง2 ใช้ <b>${t2str}</b></span>
+        </div>
+      </div>
       <span class="ebadge ${cls}">${dStr}</span></div>`;
   }).join('');
   renderChart(entries);
