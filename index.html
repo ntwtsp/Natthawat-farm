@@ -360,12 +360,9 @@
 <!-- MODAL: WEIGHT -->
 <div class="overlay" id="ovWeight" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal">
-    <h3>⚖️ บันทึกน้ำหนักหมู</h3>
-    <div class="fs"><label>วันที่</label><input type="date" id="wDate" /></div>
-    <div class="ig">
-      <div class="fs"><label>น้ำหนักรวม (กก.)</label><input type="number" id="wTotal" placeholder="0" min="0" inputmode="decimal" /></div>
-      <div class="fs"><label>จำนวนตัวที่ชั่ง</label><input type="number" id="wCount" placeholder="0" min="0" inputmode="numeric" /></div>
-    </div>
+    <h3 id="wModalTitle">⚖️ บันทึกน้ำหนักหมู</h3>
+    <div class="fs" id="wDateWrap"><label>วันที่</label><input type="date" id="wDate" /></div>
+    <div class="fs"><label>น้ำหนักเฉลี่ย (กก./ตัว)</label><input type="number" id="wAvgWeight" placeholder="0.0" min="0" step="0.1" inputmode="decimal" /></div>
     <div class="fs"><label>หมายเหตุ (ไม่บังคับ)</label><textarea id="wNote" placeholder="เช่น ชั่งเฉพาะตัวโต..."></textarea></div>
     <button class="mbtn pri" onclick="saveWeight()">💾 บันทึก</button>
     <button class="mbtn cnl" onclick="document.getElementById('ovWeight').classList.remove('open')">ยกเลิก</button>
@@ -445,14 +442,14 @@ function loadDB() {
     batches: [{
       id: 1, name: 'รุ่น 1', startDate: '2026-02-23',
       entries: SEED_FEED.map((e, i) => ({ id: i+1, ...e })),
-      pigEvents: [], weightRecords: []
+      pigEvents: [], weightRecords: [], intakeAvgWeight: null
     }]
   };
   // migrate from v2
   try {
     const v2 = JSON.parse(localStorage.getItem('pigFeedData_v2'));
     if (v2 && v2.batches) {
-      initial.batches = v2.batches.map(b => ({ ...b, pigEvents: b.pigEvents || [], weightRecords: b.weightRecords || [] }));
+      initial.batches = v2.batches.map(b => ({ ...b, pigEvents: b.pigEvents || [], weightRecords: b.weightRecords || [], intakeAvgWeight: b.intakeAvgWeight || null }));
       initial.activeBatchId = v2.activeBatchId;
     }
   } catch {}
@@ -651,48 +648,58 @@ function renderPigs() {
 }
 
 // ─── WEIGHT & FCR ──────────────────────────────────────────────────────────
+let _wModalType = 'current';
+
 function renderWeightFcr() {
   const db=loadDB(), batch=getActiveBatch(db);
-  const wr=(batch?.weightRecords||[]);
+  const wr=(batch?.weightRecords||[]).filter(w=>w.avgWeight!=null);
   const bs=batchStats(batch||{entries:[]});
-  const first=wr[0], last=wr[wr.length-1];
+  const {count:pigCount}=calcPigCount((batch?.pigEvents||[]));
 
-  // FCR
+  const intakeAvg = batch?.intakeAvgWeight ?? null;
+  const latestWr = wr[wr.length-1];
+  const currentAvg = latestWr ? latestWr.avgWeight : null;
+  const gainPerPig = (intakeAvg!=null && currentAvg!=null) ? currentAvg - intakeAvg : null;
+  const totalGain = (gainPerPig!=null && pigCount>0) ? gainPerPig * pigCount : null;
+
   let fcrVal=null, fcrCls='none', fcrLabel='ยังไม่มีข้อมูล';
-  if(first && last && first.id!==last.id) {
-    const gain=last.totalWeight - first.totalWeight;
-    if(gain>0){
-      fcrVal=bs.totalUsed/gain;
-      if(fcrVal<2.5){fcrCls='good';fcrLabel='ดีมาก';}
-      else if(fcrVal<3.0){fcrCls='ok';fcrLabel='ปกติ';}
-      else{fcrCls='bad';fcrLabel='ควรปรับปรุง';}
-    }
+  if(totalGain!=null && totalGain>0) {
+    fcrVal = bs.totalUsed / totalGain;
+    if(fcrVal<2.5){fcrCls='good';fcrLabel='ดีมาก';}
+    else if(fcrVal<3.0){fcrCls='ok';fcrLabel='ปกติ';}
+    else{fcrCls='bad';fcrLabel='ควรปรับปรุง';}
   }
-
-  // latest weight
-  const latestW=last?last.totalWeight:null;
-  const latestPigs=last?last.pigCount:null;
-  const avgW=latestW&&latestPigs?latestW/latestPigs:null;
-  const gainW=first&&last&&first.id!==last.id?last.totalWeight-first.totalWeight:null;
 
   const recentWr=wr.slice(-3).reverse();
 
   document.getElementById('weightFcrSection').innerHTML=`
   <div class="card" style="margin-bottom:12px">
-    <div class="wf-hd">
+    <div class="wf-hd" style="margin-bottom:12px">
       <div class="wf-hd-title">⚖️ น้ำหนักหมู</div>
-      <button class="wf-add-btn" onclick="openWeightModal()">+ บันทึกน้ำหนัก</button>
     </div>
-    <div class="wf-grid">
-      <div class="wf-item"><div class="wfl">น้ำหนักรวมล่าสุด</div><div class="wfv gc">${latestW!=null?fmt(latestW)+' กก.':'—'}</div></div>
-      <div class="wf-item"><div class="wfl">เฉลี่ย/ตัว</div><div class="wfv">${avgW!=null?avgW.toFixed(1)+' กก.':'—'}</div></div>
-      <div class="wf-item"><div class="wfl">น้ำหนักเพิ่ม</div><div class="wfv ${gainW!=null&&gainW>0?'gc':'yc'}">${gainW!=null?(gainW>0?'+':'')+fmt(gainW)+' กก.':'—'}</div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div style="background:#f0fdf4;border-radius:12px;padding:12px">
+        <div style="font-size:10px;color:#6b7280;margin-bottom:3px">น้ำหนักรับเข้าเฉลี่ย</div>
+        <div style="font-size:22px;font-weight:800;color:#15803d;line-height:1">${intakeAvg!=null?intakeAvg.toFixed(1):'—'}</div>
+        <div style="font-size:10px;color:#6b7280;margin-bottom:8px">กก./ตัว</div>
+        <button onclick="openWeightModal('intake')" style="width:100%;padding:6px;border-radius:8px;border:none;background:#dcfce7;color:#15803d;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer">${intakeAvg!=null?'✏️ แก้ไข':'+ ตั้งค่า'}</button>
+      </div>
+      <div style="background:#eff6ff;border-radius:12px;padding:12px">
+        <div style="font-size:10px;color:#6b7280;margin-bottom:3px">น้ำหนักปัจจุบันเฉลี่ย</div>
+        <div style="font-size:22px;font-weight:800;color:#1d4ed8;line-height:1">${currentAvg!=null?currentAvg.toFixed(1):'—'}</div>
+        <div style="font-size:10px;color:#6b7280;margin-bottom:8px">กก./ตัว</div>
+        <button onclick="openWeightModal('current')" style="width:100%;padding:6px;border-radius:8px;border:none;background:#dbeafe;color:#1d4ed8;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer">+ บันทึก</button>
+      </div>
     </div>
-    ${recentWr.length?`<div class="wt-history">${recentWr.map(w=>`
+    ${gainPerPig!=null?`<div style="background:#faf5ff;border-radius:10px;padding:10px;margin-bottom:10px;text-align:center">
+      <div style="font-size:10px;color:#7c3aed;font-weight:600;margin-bottom:2px">น้ำหนักเพิ่มขึ้น/ตัว</div>
+      <div style="font-size:20px;font-weight:800;color:#7c3aed">${gainPerPig>0?'+':''}${gainPerPig.toFixed(1)} กก./ตัว</div>
+    </div>`:''}
+    ${recentWr.length?`<div class="wt-history" style="margin-bottom:8px">${recentWr.map(w=>`
       <div class="wt-item">
-        <div class="wd">${fmtDate(w.date)} · ${fmt(w.pigCount)} ตัว</div>
+        <div class="wd">${fmtDate(w.date)}</div>
         <div style="display:flex;align-items:center;gap:8px">
-          <div class="wv">${fmt(w.totalWeight)} กก. <span style="font-size:10px;color:var(--gray)">(${(w.totalWeight/w.pigCount).toFixed(1)} กก./ตัว)</span></div>
+          <div class="wv">${w.avgWeight.toFixed(1)} กก./ตัว</div>
           <button onclick="deleteWeight(${w.id})" style="width:22px;height:22px;border-radius:5px;border:none;background:#fee2e2;color:#dc2626;cursor:pointer;font-size:10px;flex-shrink:0">✕</button>
         </div>
       </div>`).join('')}</div>`:''}
@@ -708,35 +715,45 @@ function renderWeightFcr() {
       </div>
       <div class="fcr-detail">
         <div class="fcr-di"><div class="fdl">อาหารที่ใช้ไปทั้งหมด</div><div class="fdv">${fmt(bs.totalUsed)} กก.</div></div>
-        <div class="fcr-di"><div class="fdl">น้ำหนักที่เพิ่มขึ้น</div><div class="fdv">${gainW!=null?fmt(gainW)+' กก.':'ยังไม่มีข้อมูล'}</div></div>
+        <div class="fcr-di"><div class="fdl">น้ำหนักที่เพิ่มรวม</div><div class="fdv">${totalGain!=null?fmt(Math.round(totalGain))+' กก.':'ยังไม่มีข้อมูล'}</div></div>
       </div>
       <div style="margin-top:8px;padding:8px;background:#f9fafb;border-radius:8px;font-size:10px;color:var(--gray);line-height:1.6">
-        เกณฑ์ FCR หมู: <span style="color:#15803d;font-weight:600">&lt;2.5 ดีมาก</span> · <span style="color:#d97706;font-weight:600">2.5–3.0 ปกติ</span> · <span style="color:#dc2626;font-weight:600">&gt;3.0 ควรปรับ</span>
+        สูตร: อาหารรวม ÷ (น้ำหนักปัจจุบัน − น้ำหนักรับเข้า) × จำนวนหมู<br>
+        เกณฑ์: <span style="color:#15803d;font-weight:600">&lt;2.5 ดีมาก</span> · <span style="color:#d97706;font-weight:600">2.5–3.0 ปกติ</span> · <span style="color:#dc2626;font-weight:600">&gt;3.0 ควรปรับ</span>
       </div>
     </div>
   </div>`;
 }
 
-function openWeightModal() {
-  document.getElementById('wDate').value=new Date().toISOString().split('T')[0];
-  document.getElementById('wTotal').value='';
-  document.getElementById('wCount').value='';
-  document.getElementById('wNote').value='';
+function openWeightModal(type) {
+  _wModalType = type || 'current';
+  const isIntake = _wModalType === 'intake';
+  document.getElementById('wModalTitle').textContent = isIntake ? '🐣 น้ำหนักรับเข้าเฉลี่ย' : '⚖️ น้ำหนักปัจจุบันเฉลี่ย';
+  document.getElementById('wDateWrap').style.display = isIntake ? 'none' : 'block';
+  document.getElementById('wDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('wAvgWeight').value = '';
+  document.getElementById('wNote').value = '';
+  if(isIntake) {
+    const db=loadDB(), batch=getActiveBatch(db);
+    if(batch?.intakeAvgWeight) document.getElementById('wAvgWeight').value = batch.intakeAvgWeight;
+  }
   document.getElementById('ovWeight').classList.add('open');
 }
 
 function saveWeight() {
-  const date=document.getElementById('wDate').value;
-  const totalWeight=parseFloat(document.getElementById('wTotal').value);
-  const pigCount=parseInt(document.getElementById('wCount').value);
-  const note=document.getElementById('wNote').value.trim();
-  if(!date){showToast('⚠️ เลือกวันที่ด้วย');return;}
-  if(isNaN(totalWeight)||totalWeight<=0){showToast('⚠️ ใส่น้ำหนักรวมด้วย');return;}
-  if(isNaN(pigCount)||pigCount<=0){showToast('⚠️ ใส่จำนวนตัวด้วย');return;}
+  const avgWeight = parseFloat(document.getElementById('wAvgWeight').value);
+  const note = document.getElementById('wNote').value.trim();
+  if(isNaN(avgWeight)||avgWeight<=0){showToast('⚠️ ใส่น้ำหนักเฉลี่ย กก./ตัว ด้วย');return;}
   const db=loadDB(), batch=getActiveBatch(db);
-  if(!batch.weightRecords) batch.weightRecords=[];
-  batch.weightRecords.push({id:Date.now(),date,totalWeight,pigCount,note});
-  batch.weightRecords.sort((a,b)=>new Date(a.date)-new Date(b.date));
+  if(_wModalType === 'intake') {
+    batch.intakeAvgWeight = avgWeight;
+  } else {
+    const date = document.getElementById('wDate').value;
+    if(!date){showToast('⚠️ เลือกวันที่ด้วย');return;}
+    if(!batch.weightRecords) batch.weightRecords=[];
+    batch.weightRecords.push({id:Date.now(),date,avgWeight,note});
+    batch.weightRecords.sort((a,b)=>new Date(a.date)-new Date(b.date));
+  }
   saveDB(db);
   document.getElementById('ovWeight').classList.remove('open');
   showToast('✅ บันทึกน้ำหนักแล้ว');
@@ -961,7 +978,7 @@ function confirmNewBatch(){
   if(!name||!startDate){showToast('⚠️ กรอกข้อมูลให้ครบ');return;}
   const db=loadDB();
   const newId=Math.max(...db.batches.map(b=>b.id))+1;
-  db.batches.push({id:newId,name,startDate,entries:[],pigEvents:[]});
+  db.batches.push({id:newId,name,startDate,entries:[],pigEvents:[],weightRecords:[],intakeAvgWeight:null});
   db.activeBatchId=newId; saveDB(db);
   document.getElementById('ovBatch').classList.remove('open');
   renderBatchHeader(); showPage('home',document.querySelector('.nb'));
