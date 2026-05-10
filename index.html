@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="อาหารหมู" />
+  <meta name="theme-color" content="#15803d" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <title>บันทึกฟาร์มหมู</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    :root{
+      --g:#16a34a;--gd:#15803d;--gl:#bbf7d0;--gp:#f0fdf4;
+      --y:#d97706;--yl:#fef3c7;
+      --r:#dc2626;--rl:#fee2e2;
+      --b:#2563eb;--bl:#dbeafe;
+      --p:#7c3aed;--pl:#ede9fe;
+      --o:#ea580c;--ol:#ffedd5;
+      --gray:#6b7280;--grl:#f3f4f6;
+      --shad:0 2px 12px rgba(0,0,0,.08);--rad:16px;
+      --st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px)
+    }
+    body{font-family:-apple-system,'Sarabun',sans-serif;background:#e8f5e9;min-height:100dvh;color:#1a2e1a;overscroll-behavior:none}
+
+    /* HEADER */
+    .hdr{background:linear-gradient(135deg,#14532d,#15803d 55%,#16a34a);padding:calc(var(--st)+14px) 16px 14px;color:#fff;position:sticky;top:0;z-index:100;box-shadow:0 2px 14px rgba(0,0,0,.18)}
+    .hdr-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+    .hdr h1{font-size:18px;font-weight:700}
+    .hdr-sub{font-size:11px;opacity:.75;margin-top:1px}
+    .batch-row{display:flex;align-items:center;gap:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+    .batch-row::-webkit-scrollbar{display:none}
+    .bpill{padding:5px 13px;border-radius:20px;border:1.5px solid rgba(255,255,255,.4);background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0;transition:all .2s}
+    .bpill.active{background:#fff;color:var(--gd);border-color:#fff}
+    .badd{padding:5px 11px;border-radius:20px;border:1.5px dashed rgba(255,255,255,.5);background:transparent;color:rgba(255,255,255,.8);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0}
+
+    /* NAV */
+    .nav{position:fixed;bottom:0;left:0;right:0;background:#fff;display:flex;border-top:1px solid #e5e7eb;padding-bottom:var(--sb);z-index:100;box-shadow:0 -4px 20px rgba(0,0,0,.08)}
+    .nb{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 0 7px;border:none;background:none;cursor:pointer;color:#9ca3af;font-family:inherit;transition:color .2s}
+    .nb.active{color:var(--g)}
+    .nb svg{width:21px;height:21px}
+    .nb span{font-size:10px;font-weight:500}
+
+    /* PAGES */
+    .page{display:none;padding:14px 14px calc(76px + var(--sb));animation:fi .2s ease}
+    .page.active{display:block}
+    @keyframes fi{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+
+    /* CARD */
+    .card{background:#fff;border-radius:var(--rad);padding:16px;box-shadow:var(--shad);margin-bottom:12px}
+
+    /* STATS GRID */
+    .sg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+    .sc{background:#fff;border-radius:14px;padding:14px 12px;box-shadow:var(--shad);text-align:center}
+    .sc .ico{font-size:20px;margin-bottom:3px}
+    .sc .val{font-size:20px;font-weight:700;line-height:1.1}
+    .sc .lbl{font-size:10px;color:var(--gray);margin-top:2px}
+    .sc.sg{background:linear-gradient(135deg,#f0fdf4,#dcfce7)}
+    .sc.sy{background:linear-gradient(135deg,#fffbeb,#fef3c7)}
+    .sc.sb{background:linear-gradient(135deg,#eff6ff,#dbeafe)}
+    .sc.sp{background:linear-gradient(135deg,#faf5ff,#ede9fe)}
+    .sc.sr{background:linear-gradient(135deg,#fff5f5,#fee2e2)}
+
+    /* PIG STATS */
+    .pig-hero{background:linear-gradient(135deg,#581c87,#7c3aed);border-radius:14px;padding:16px;margin-bottom:12px;color:#fff;box-shadow:var(--shad)}
+    .ph-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+    .ph-top h3{font-size:14px;font-weight:700;opacity:.85}
+    .ph-count{font-size:42px;font-weight:800;line-height:1;text-align:center;margin-bottom:4px}
+    .ph-lbl{font-size:12px;opacity:.75;text-align:center;margin-bottom:14px}
+    .ph-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+    .ph-item{background:rgba(255,255,255,.12);border-radius:9px;padding:8px 4px;text-align:center}
+    .ph-item .pi-val{font-size:16px;font-weight:700}
+    .ph-item .pi-lbl{font-size:9px;opacity:.75;margin-top:2px}
+
+    /* PIG EVENT BUTTONS */
+    .evt-btns{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+    .evt-btn{padding:12px 8px;border-radius:13px;border:none;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:transform .1s}
+    .evt-btn:active{transform:scale(.96)}
+    .evt-btn .ei{font-size:22px}
+    .evt-btn.rcv{background:linear-gradient(135deg,#dbeafe,#bfdbfe);color:#1d4ed8}
+    .evt-btn.sell{background:linear-gradient(135deg,#dcfce7,#bbf7d0);color:#15803d}
+    .evt-btn.dead{background:linear-gradient(135deg,#fee2e2,#fecaca);color:#991b1b}
+    .evt-btn.move{background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e}
+    .evt-btn.cull{background:linear-gradient(135deg,#ffedd5,#fed7aa);color:#9a3412}
+    .evt-btn.note{background:linear-gradient(135deg,#f3f4f6,#e5e7eb);color:#374151}
+
+    /* EVT HISTORY */
+    .eitem{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #f3f4f6}
+    .eitem:last-child{border-bottom:none}
+    .etag{min-width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+    .etag.rcv{background:#dbeafe}
+    .etag.sell{background:#dcfce7}
+    .etag.dead{background:#fee2e2}
+    .etag.move{background:#fef3c7}
+    .etag.cull{background:#ffedd5}
+    .etag.note{background:#f3f4f6}
+    .einfo{flex:1;min-width:0}
+    .einfo .et{font-size:13px;font-weight:600}
+    .einfo .es{font-size:11px;color:var(--gray);margin-top:1px}
+    .enum{font-size:17px;font-weight:700}
+    .enum.pos{color:var(--b)}
+    .enum.neg{color:var(--r)}
+
+    /* FEED SECTIONS (same as before) */
+    .stitle{font-size:12px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.6px;margin:14px 0 7px}
+    .sbar-bg{height:9px;background:#e5e7eb;border-radius:99px;overflow:hidden}
+    .sbar-fill{height:100%;border-radius:99px;transition:width .6s ease}
+    .erow{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #f3f4f6}
+    .erow:last-child{border-bottom:none}
+    .edtb{min-width:44px;text-align:center;background:var(--gp);border-radius:10px;padding:5px 4px}
+    .edtb .day{font-size:16px;font-weight:700;color:var(--g);line-height:1}
+    .edtb .mon{font-size:10px;color:var(--gray)}
+    .einf{flex:1;min-width:0}
+    .einf .w{font-size:12px;font-weight:600}
+    .einf .s{font-size:11px;color:var(--gray);margin-top:1px}
+    .ebadge{font-size:11px;font-weight:600;padding:3px 8px;border-radius:7px;white-space:nowrap}
+    .bg{background:var(--gl);color:#15803d}
+    .by{background:var(--yl);color:#92400e}
+    .br{background:var(--rl);color:#991b1b}
+
+    /* FORM */
+    .fs{margin-bottom:16px}
+    .fs label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:5px}
+    .fs input,.fs select,.fs textarea{width:100%;padding:13px 15px;border:2px solid #e5e7eb;border-radius:12px;font-size:16px;font-family:inherit;background:#fff;color:#111827;-webkit-appearance:none;transition:border-color .2s,box-shadow .2s}
+    .fs input:focus,.fs select:focus,.fs textarea:focus{outline:none;border-color:var(--g);box-shadow:0 0 0 3px rgba(22,163,74,.12)}
+    .fs textarea{resize:none;height:70px}
+    .ig{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .rtoggle{display:flex;align-items:center;gap:10px;padding:11px 13px;background:#f9fafb;border-radius:12px;margin-bottom:14px;cursor:pointer}
+    .rtoggle input[type=checkbox]{width:20px;height:20px;accent-color:var(--g);cursor:pointer}
+    .rtoggle .tl{font-size:13px;font-weight:500}
+    .fpreview{background:var(--gp);border:1.5px dashed #86efac;border-radius:12px;padding:13px;margin-bottom:16px}
+    .fpreview .pt{font-size:12px;font-weight:600;color:var(--g);margin-bottom:8px}
+    .fpreview .pg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .fpreview .pi .pl{font-size:10px;color:var(--gray)}
+    .fpreview .pi .pv{font-size:15px;font-weight:700;color:#111827}
+    .btn-sub{width:100%;padding:15px;background:linear-gradient(135deg,#15803d,#16a34a);color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;box-shadow:0 4px 14px rgba(22,163,74,.35);transition:transform .1s}
+    .btn-sub:active{transform:scale(.98)}
+
+    /* TABS inside page */
+    .tabs{display:flex;gap:0;background:#f3f4f6;border-radius:12px;padding:3px;margin-bottom:14px}
+    .tab{flex:1;padding:8px 0;border:none;background:transparent;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;border-radius:9px;color:var(--gray);transition:all .2s}
+    .tab.active{background:#fff;color:var(--g);box-shadow:0 1px 4px rgba(0,0,0,.1)}
+
+    /* HISTORY FILTER */
+    .hf{display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px;scrollbar-width:none}
+    .hf::-webkit-scrollbar{display:none}
+    .fchip{padding:6px 13px;border-radius:20px;border:1.5px solid #e5e7eb;background:#fff;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;font-family:inherit;transition:all .2s}
+    .fchip.active{background:var(--g);color:#fff;border-color:var(--g)}
+
+    /* HISTORY ENTRY */
+    .hentry{background:#fff;border-radius:14px;padding:13px 13px 13px 17px;margin-bottom:9px;box-shadow:var(--shad);position:relative;overflow:hidden}
+    .hentry::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--g)}
+    .hentry.rc::before{background:var(--b)}
+    .hentry.wn::before{background:var(--y)}
+    .hentry.dg::before{background:var(--r)}
+    .he-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}
+    .he-dt{font-size:13px;font-weight:700;color:#111827}
+    .he-rc{font-size:11px;background:var(--bl);color:#1d4ed8;padding:3px 8px;border-radius:6px;font-weight:600}
+    .he-g{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+    .he-i .hl{font-size:10px;color:var(--gray);margin-bottom:1px}
+    .he-i .hv{font-size:13px;font-weight:600;color:#111827}
+    .he-i .hv.gc{color:var(--g)}.he-i .hv.yc{color:var(--y)}.he-i .hv.rc2{color:var(--r)}
+    .delbtn{position:absolute;right:9px;top:9px;width:26px;height:26px;border-radius:7px;border:none;background:#fee2e2;color:var(--r);cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s}
+    .hentry:hover .delbtn,.hentry:focus-within .delbtn{opacity:1}
+
+    /* BSUM */
+    .bsum{background:linear-gradient(135deg,#14532d,#15803d);border-radius:14px;padding:14px;margin-bottom:12px;color:#fff}
+    .bsum .bt{font-size:13px;font-weight:700;opacity:.8;margin-bottom:8px}
+    .bsum .bg2{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .bsum .bi .bl{font-size:10px;opacity:.7}
+    .bsum .bi .bv{font-size:15px;font-weight:700}
+
+    /* MODAL */
+    .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
+    .overlay.open{opacity:1;pointer-events:all}
+    .modal{background:#fff;border-radius:24px 24px 0 0;padding:24px 20px calc(20px + var(--sb));width:100%;max-width:480px;transform:translateY(100%);transition:transform .3s cubic-bezier(.32,0,.15,1)}
+    .overlay.open .modal{transform:translateY(0)}
+    .modal h3{font-size:17px;font-weight:700;margin-bottom:16px;text-align:center}
+    .mbtn{width:100%;padding:14px;border-radius:13px;border:none;font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;margin-bottom:8px}
+    .mbtn.pri{background:linear-gradient(135deg,#15803d,#16a34a);color:#fff}
+    .mbtn.cnl{background:var(--grl);color:#374151}
+
+    /* PIG MODAL */
+    .pig-modal-icon{text-align:center;font-size:48px;margin-bottom:8px}
+    .pig-modal-title{text-align:center;font-size:18px;font-weight:700;margin-bottom:4px}
+    .pig-modal-sub{text-align:center;font-size:13px;color:var(--gray);margin-bottom:16px}
+
+    /* EMPTY */
+    .empty{text-align:center;padding:40px 20px;color:var(--gray)}
+    .empty .ei{font-size:40px;margin-bottom:8px}
+    .empty p{font-size:13px}
+
+    /* TOAST */
+    .toast{position:fixed;bottom:calc(76px + var(--sb) + 10px);left:50%;transform:translateX(-50%) translateY(20px);background:#111827;color:#fff;padding:10px 20px;border-radius:99px;font-size:13px;font-weight:500;opacity:0;transition:all .3s;z-index:300;pointer-events:none;white-space:nowrap}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  </style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-top">
+    <div><h1>🐷 บันทึกฟาร์มหมู</h1><div class="hdr-sub" id="headerDate"></div></div>
+    <div style="font-size:26px">🌾</div>
+  </div>
+  <div class="batch-row" id="batchRow"></div>
+</div>
+
+<!-- HOME -->
+<div id="page-home" class="page active">
+  <div class="sg">
+    <div class="sc sg"><div class="ico">⚖️</div><div class="val" id="sRemain">—</div><div class="lbl">อาหารคงเหลือ (กก.)</div></div>
+    <div class="sc sp"><div class="ico">🐷</div><div class="val" id="sPigs">—</div><div class="lbl">หมูปัจจุบัน (ตัว)</div></div>
+    <div class="sc sy"><div class="ico">📅</div><div class="val" id="sDays">—</div><div class="lbl">ใช้ได้อีก (วัน)</div></div>
+    <div class="sc sb"><div class="ico">📊</div><div class="val" id="sAvg">—</div><div class="lbl">ค่าเฉลี่ย/วัน (กก.)</div></div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-size:12px;font-weight:600;color:#374151">สถานะอาหาร</span>
+      <span id="statusLabel" style="font-size:11px;font-weight:600;padding:3px 9px;border-radius:7px"></span>
+    </div>
+    <div class="sbar-bg"><div class="sbar-fill" id="sbarFill" style="width:0%"></div></div>
+    <div style="font-size:10px;color:var(--gray);margin-top:4px;text-align:right" id="sbarLbl"></div>
+  </div>
+
+  <div id="batchSummary"></div>
+
+  <div class="stitle">บันทึกอาหารล่าสุด</div>
+  <div class="card" style="padding:8px 15px"><div id="recentList"><div class="empty"><div class="ei">📋</div><p>ยังไม่มีข้อมูล</p></div></div></div>
+
+  <div class="stitle">กราฟการใช้ 7 วัน</div>
+  <div class="card" style="padding:12px"><canvas id="chartCanvas" height="120" style="width:100%"></canvas></div>
+</div>
+
+<!-- PIGS PAGE -->
+<div id="page-pigs" class="page">
+  <div id="pigHero"></div>
+
+  <div class="stitle">บันทึกการเปลี่ยนแปลง</div>
+  <div class="evt-btns">
+    <button class="evt-btn rcv" onclick="openPigModal('รับเข้า')"><div class="ei">🚛</div><span>รับเข้า</span></button>
+    <button class="evt-btn sell" onclick="openPigModal('ขาย')"><div class="ei">💰</div><span>ขาย</span></button>
+    <button class="evt-btn dead" onclick="openPigModal('ตาย')"><div class="ei">💀</div><span>ตาย</span></button>
+    <button class="evt-btn move" onclick="openPigModal('ย้าย')"><div class="ei">🚚</div><span>ย้าย</span></button>
+    <button class="evt-btn cull" onclick="openPigModal('คัดทิ้ง')"><div class="ei">🗑️</div><span>คัดทิ้ง</span></button>
+    <button class="evt-btn note" onclick="openPigModal('หมายเหตุ')"><div class="ei">📝</div><span>บันทึก</span></button>
+  </div>
+
+  <div class="stitle">ประวัติการเคลื่อนไหว</div>
+  <div class="card" style="padding:8px 15px"><div id="pigEventList"><div class="empty"><div class="ei">🐷</div><p>ยังไม่มีข้อมูล</p></div></div></div>
+</div>
+
+<!-- ADD FEED -->
+<div id="page-add" class="page">
+  <div class="card">
+    <div style="font-size:16px;font-weight:700;margin-bottom:16px">➕ บันทึกอาหารประจำวัน</div>
+    <div class="fs"><label>วันที่</label><input type="date" id="fDate" /></div>
+    <label class="rtoggle" for="cbRcv"><input type="checkbox" id="cbRcv" /><span class="tl">🚛 มีอาหารรับเข้าวันนี้</span></label>
+    <div id="rcvField" style="display:none" class="fs"><label>รับเข้า (กก.)</label><input type="number" id="fRcv" placeholder="0" min="0" inputmode="numeric" /></div>
+    <div class="ig">
+      <div class="fs"><label>ถัง 1 (กก.)</label><input type="number" id="fW1" placeholder="0" min="0" inputmode="numeric" /></div>
+      <div class="fs"><label>ถัง 2 (กก.)</label><input type="number" id="fW2" placeholder="0" min="0" inputmode="numeric" /></div>
+    </div>
+    <div class="fpreview" id="fpreview" style="display:none">
+      <div class="pt">📋 ผลคำนวณ</div>
+      <div class="pg">
+        <div class="pi"><div class="pl">คงเหลือ</div><div class="pv" id="pRemain">—</div></div>
+        <div class="pi"><div class="pl">ใช้ไป</div><div class="pv" id="pUsed">—</div></div>
+        <div class="pi"><div class="pl">ใช้ได้อีก</div><div class="pv" id="pDays">—</div></div>
+        <div class="pi"><div class="pl">เฉลี่ย/วัน</div><div class="pv" id="pAvg">—</div></div>
+      </div>
+    </div>
+    <button class="btn-sub" onclick="saveEntry()">💾 บันทึกอาหาร</button>
+  </div>
+</div>
+
+<!-- HISTORY -->
+<div id="page-history" class="page">
+  <div class="tabs">
+    <button class="tab active" onclick="switchHistTab('feed',this)">🌾 อาหาร</button>
+    <button class="tab" onclick="switchHistTab('pigs',this)">🐷 หมู</button>
+  </div>
+  <div id="htab-feed">
+    <div class="hf" id="filterRow">
+      <button class="fchip active" data-f="all">ทั้งหมด</button>
+      <button class="fchip" data-f="7">7 วัน</button>
+      <button class="fchip" data-f="30">30 วัน</button>
+      <button class="fchip" data-f="rcv">มีรับเข้า</button>
+    </div>
+    <div id="historyList"></div>
+  </div>
+  <div id="htab-pigs" style="display:none">
+    <div id="pigHistoryList"></div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <button class="nb active" onclick="showPage('home',this)">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+    <span>หน้าหลัก</span>
+  </button>
+  <button class="nb" onclick="showPage('pigs',this)">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 6.375a4.125 4.125 0 1 1 8.25 0 4.125 4.125 0 0 1-8.25 0ZM14.25 8.625a3.375 3.375 0 1 1 6.75 0 3.375 3.375 0 0 1-6.75 0ZM1.5 19.125a7.125 7.125 0 0 1 14.25 0v.003l-.001.119a.75.75 0 0 1-.363.63 13.067 13.067 0 0 1-6.761 1.873c-2.472 0-4.786-.684-6.76-1.873a.75.75 0 0 1-.364-.63l-.001-.122ZM17.25 19.128l-.001.144a2.25 2.25 0 0 1-.233.96 10.088 10.088 0 0 0 5.06-1.01.75.75 0 0 0 .42-.643 4.875 4.875 0 0 0-6.957-4.611 8.586 8.586 0 0 1 1.71 5.157v.003Z"/></svg>
+    <span>จำนวนหมู</span>
+  </button>
+  <button class="nb" onclick="showPage('add',this)">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+    <span>บันทึกอาหาร</span>
+  </button>
+  <button class="nb" onclick="showPage('history',this)">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+    <span>ประวัติ</span>
+  </button>
+</nav>
+
+<!-- MODAL: NEW BATCH -->
+<div class="overlay" id="ovBatch" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <h3>🐣 เพิ่มรุ่นใหม่</h3>
+    <div class="fs"><label>ชื่อรุ่น</label><input type="text" id="mbName" placeholder="เช่น รุ่น 2" /></div>
+    <div class="fs"><label>วันที่เริ่ม</label><input type="date" id="mbDate" /></div>
+    <button class="mbtn pri" onclick="confirmNewBatch()">✅ สร้างรุ่นใหม่</button>
+    <button class="mbtn cnl" onclick="document.getElementById('ovBatch').classList.remove('open')">ยกเลิก</button>
+  </div>
+</div>
+
+<!-- MODAL: PIG EVENT -->
+<div class="overlay" id="ovPig" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <div class="pig-modal-icon" id="pmIcon"></div>
+    <div class="pig-modal-title" id="pmTitle"></div>
+    <div class="pig-modal-sub" id="pmSub"></div>
+    <div class="fs"><label>วันที่</label><input type="date" id="pmDate" /></div>
+    <div class="fs" id="pmCountWrap"><label>จำนวน (ตัว)</label><input type="number" id="pmCount" placeholder="0" min="0" inputmode="numeric" /></div>
+    <div class="fs"><label>หมายเหตุ (ไม่บังคับ)</label><textarea id="pmNote" placeholder="รายละเอียดเพิ่มเติม..."></textarea></div>
+    <button class="mbtn pri" onclick="savePigEvent()">💾 บันทึก</button>
+    <button class="mbtn cnl" onclick="document.getElementById('ovPig').classList.remove('open')">ยกเลิก</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── SEED ──────────────────────────────────────────────────────────────────
+const SEED_FEED = [
+  {date:"2026-02-23",w1:5636,w2:5115,received:12375},{date:"2026-02-24",w1:4981,w2:4413,received:0},
+  {date:"2026-02-25",w1:4387,w2:3721,received:0},{date:"2026-02-26",w1:3654,w2:2977,received:0},
+  {date:"2026-02-27",w1:2706,w2:2130,received:0},{date:"2026-02-28",w1:1879,w2:1315,received:0},
+  {date:"2026-03-01",w1:932,w2:398,received:0},{date:"2026-03-02",w1:6085,w2:5861,received:12710},
+  {date:"2026-03-03",w1:5271,w2:5426,received:0},{date:"2026-03-04",w1:4679,w2:4499,received:0},
+  {date:"2026-03-05",w1:3224,w2:3430,received:0},{date:"2026-03-06",w1:2532,w2:2305,received:0},
+  {date:"2026-03-07",w1:1448,w2:1208,received:0},{date:"2026-03-08",w1:62,w2:344,received:0},
+  {date:"2026-03-09",w1:5810,w2:5704,received:13165},{date:"2026-03-10",w1:4667,w2:4608,received:0},
+  {date:"2026-03-11",w1:3670,w2:3555,received:0},{date:"2026-03-12",w1:2651,w2:2472,received:0},
+  {date:"2026-03-13",w1:1640,w2:1396,received:0},{date:"2026-03-14",w1:6105,w2:6205,received:11440},
+  {date:"2026-03-15",w1:4900,w2:4983,received:0},{date:"2026-03-16",w1:3689,w2:3831,received:0},
+  {date:"2026-03-17",w1:2586,w2:2649,received:0},{date:"2026-03-18",w1:1263,w2:1239,received:0},
+  {date:"2026-03-19",w1:128,w2:115,received:0},{date:"2026-03-20",w1:5276,w2:5066,received:12935},
+  {date:"2026-03-21",w1:4003,w2:3718,received:0},{date:"2026-03-22",w1:2611,w2:2412,received:0},
+  {date:"2026-03-23",w1:1383,w2:1144,received:0},{date:"2026-03-24",w1:6143,w2:6176,received:12315},
+  {date:"2026-03-25",w1:4891,w2:4863,received:0},{date:"2026-03-26",w1:3630,w2:3685,received:0},
+  {date:"2026-03-27",w1:2250,w2:2262,received:0},{date:"2026-03-28",w1:1042,w2:1063,received:0},
+  {date:"2026-03-29",w1:79,w2:106,received:0},{date:"2026-03-30",w1:5157,w2:5191,received:13275},
+  {date:"2026-03-31",w1:3588,w2:3539,received:0},{date:"2026-04-01",w1:2118,w2:2059,received:0},
+  {date:"2026-04-02",w1:6276,w2:6147,received:11190},{date:"2026-04-03",w1:4844,w2:4754,received:0},
+  {date:"2026-04-04",w1:3395,w2:3292,received:0},{date:"2026-04-05",w1:1925,w2:1864,received:0},
+  {date:"2026-04-06",w1:402,w2:455,received:0},{date:"2026-04-07",w1:5176,w2:5159,received:12400},
+  {date:"2026-04-08",w1:3683,w2:3772,received:0},{date:"2026-04-09",w1:2164,w2:2368,received:0},
+  {date:"2026-04-10",w1:581,w2:823,received:0},{date:"2026-04-11",w1:5560,w2:5672,received:12900},
+  {date:"2026-04-12",w1:4093,w2:4222,received:0},{date:"2026-04-13",w1:2570,w2:2837,received:0},
+  {date:"2026-04-14",w1:1277,w2:1697,received:0},{date:"2026-04-15",w1:16,w2:174,received:0},
+  {date:"2026-04-16",w1:4883,w2:5317,received:13480},{date:"2026-04-17",w1:3291,w2:3907,received:0},
+  {date:"2026-04-18",w1:1851,w2:2525,received:0},{date:"2026-04-19",w1:318,w2:1176,received:0},
+  {date:"2026-04-20",w1:5387,w2:5767,received:12675},{date:"2026-04-21",w1:3857,w2:4234,received:0},
+  {date:"2026-04-22",w1:2279,w2:2737,received:0},{date:"2026-04-23",w1:705,w2:1229,received:0},
+  {date:"2026-04-24",w1:5668,w2:6092,received:12535},{date:"2026-04-25",w1:4058,w2:4556,received:0},
+  {date:"2026-04-26",w1:2464,w2:3035,received:0},{date:"2026-04-27",w1:928,w2:1550,received:0},
+  {date:"2026-04-28",w1:5450,w2:5885,received:12045},{date:"2026-04-29",w1:4060,w2:4512,received:0},
+  {date:"2026-04-30",w1:2442,w2:2916,received:0},{date:"2026-05-01",w1:1367,w2:870,received:0},
+  {date:"2026-05-02",w1:5563,w2:5155,received:11650},{date:"2026-05-03",w1:4041,w2:3613,received:0},
+  {date:"2026-05-04",w1:2481,w2:2185,received:0},{date:"2026-05-05",w1:982,w2:752,received:0},
+  {date:"2026-05-06",w1:5692,w2:5545,received:12265},{date:"2026-05-07",w1:4191,w2:4118,received:0},
+  {date:"2026-05-08",w1:2870,w2:2708,received:0},{date:"2026-05-09",w1:1461,w2:1295,received:0},
+  {date:"2026-05-10",w1:26,w2:1,received:0},
+];
+
+// ─── DB ────────────────────────────────────────────────────────────────────
+const DB_KEY = 'pigFeedData_v3';
+
+function loadDB() {
+  try {
+    const d = JSON.parse(localStorage.getItem(DB_KEY));
+    if (d && d.batches) return d;
+  } catch {}
+  const initial = {
+    activeBatchId: 1,
+    batches: [{
+      id: 1, name: 'รุ่น 1', startDate: '2026-02-23',
+      entries: SEED_FEED.map((e, i) => ({ id: i+1, ...e })),
+      pigEvents: []
+    }]
+  };
+  // migrate from v2
+  try {
+    const v2 = JSON.parse(localStorage.getItem('pigFeedData_v2'));
+    if (v2 && v2.batches) {
+      initial.batches = v2.batches.map(b => ({ ...b, pigEvents: b.pigEvents || [] }));
+      initial.activeBatchId = v2.activeBatchId;
+    }
+  } catch {}
+  saveDB(initial);
+  return initial;
+}
+
+function saveDB(db) { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+function getActiveBatch(db) { return db.batches.find(b => b.id === db.activeBatchId); }
+
+// ─── PIG CALC ──────────────────────────────────────────────────────────────
+const PIG_POSITIVE = ['รับเข้า'];
+const PIG_META = ['หมายเหตุ'];
+
+function calcPigCount(pigEvents) {
+  let count = 0;
+  const totals = { รับเข้า:0, ขาย:0, ตาย:0, ย้าย:0, คัดทิ้ง:0 };
+  pigEvents.forEach(e => {
+    if (PIG_META.includes(e.type)) return;
+    const n = e.count || 0;
+    if (PIG_POSITIVE.includes(e.type)) count += n;
+    else count -= n;
+    if (totals[e.type] !== undefined) totals[e.type] += n;
+  });
+  return { count, totals };
+}
+
+// ─── FEED CALC ─────────────────────────────────────────────────────────────
+function calcEntry(entry, entries) {
+  const idx = entries.findIndex(e => e.id === entry.id);
+  const remaining = (entry.w1||0)+(entry.w2||0);
+  let used = null;
+  if (idx > 0) {
+    const prev = entries[idx-1];
+    used = (prev.w1||0)+(prev.w2||0)+(entry.received||0)-remaining;
+  }
+  const ua = [];
+  for (let i=Math.max(1,idx-4); i<=idx; i++) {
+    const p=entries[i-1],c=entries[i];
+    const u=(p.w1||0)+(p.w2||0)+(c.received||0)-((c.w1||0)+(c.w2||0));
+    if(u>0) ua.push(u);
+  }
+  const avg = ua.length ? ua.reduce((a,b)=>a+b)/ua.length : null;
+  return { remaining, used, avg, days: avg&&avg>0 ? remaining/avg : null };
+}
+
+function batchStats(batch) {
+  const entries = batch.entries;
+  let totalRcv=0, totalUsed=0, usedArr=[];
+  entries.forEach(e => totalRcv += (e.received||0));
+  for (let i=1;i<entries.length;i++){
+    const p=entries[i-1],c=entries[i];
+    const u=(p.w1||0)+(p.w2||0)+(c.received||0)-((c.w1||0)+(c.w2||0));
+    if(u>0){totalUsed+=u;usedArr.push(u);}
+  }
+  return { totalRcv, totalUsed, days:entries.length,
+    avgPerDay: usedArr.length?usedArr.reduce((a,b)=>a+b)/usedArr.length:0 };
+}
+
+// ─── FORMAT ────────────────────────────────────────────────────────────────
+const MONTHS=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const EVT_CFG = {
+  'รับเข้า':{icon:'🚛',cls:'rcv',sign:'+'},
+  'ขาย':    {icon:'💰',cls:'sell',sign:'-'},
+  'ตาย':    {icon:'💀',cls:'dead',sign:'-'},
+  'ย้าย':   {icon:'🚚',cls:'move',sign:'-'},
+  'คัดทิ้ง':{icon:'🗑️',cls:'cull',sign:'-'},
+  'หมายเหตุ':{icon:'📝',cls:'note',sign:''},
+};
+function fmt(v){if(v==null)return'—';return Number(v).toLocaleString('th-TH',{maximumFractionDigits:0})}
+function fmtDate(s){const d=new Date(s);return`${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()+543}`}
+
+// ─── NAV ───────────────────────────────────────────────────────────────────
+let curPage='home', curFilter='all', curHistTab='feed';
+
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  btn.classList.add('active');
+  curPage=name;
+  if(name==='home') renderHome();
+  if(name==='pigs') renderPigs();
+  if(name==='history'){renderHistory(curFilter);renderPigHistory();}
+  if(name==='add') resetForm();
+}
+
+function switchHistTab(tab,btn) {
+  curHistTab=tab;
+  document.querySelectorAll('.tabs .tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('htab-feed').style.display=tab==='feed'?'block':'none';
+  document.getElementById('htab-pigs').style.display=tab==='pigs'?'block':'none';
+}
+
+// ─── BATCH HEADER ──────────────────────────────────────────────────────────
+function renderBatchHeader() {
+  const db=loadDB();
+  document.getElementById('batchRow').innerHTML =
+    db.batches.map(b=>`<button class="bpill${b.id===db.activeBatchId?' active':''}" onclick="switchBatch(${b.id})">${b.name}</button>`).join('')+
+    `<button class="badd" onclick="openBatchModal()">＋ รุ่นใหม่</button>`;
+}
+
+function switchBatch(id){
+  const db=loadDB(); db.activeBatchId=id; saveDB(db);
+  renderBatchHeader();
+  if(curPage==='home') renderHome();
+  if(curPage==='pigs') renderPigs();
+  if(curPage==='history'){renderHistory(curFilter);renderPigHistory();}
+}
+
+// ─── HOME ──────────────────────────────────────────────────────────────────
+function renderHome() {
+  const db=loadDB(), batch=getActiveBatch(db);
+  const entries=batch?batch.entries:[];
+  document.getElementById('headerDate').textContent =
+    new Date().toLocaleDateString('th-TH',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+
+  const pigData = batch ? calcPigCount(batch.pigEvents||[]) : {count:0};
+  document.getElementById('sPigs').textContent = batch&&(batch.pigEvents||[]).length ? fmt(pigData.count) : '—';
+
+  if(!entries.length){
+    ['sRemain','sDays','sAvg'].forEach(id=>document.getElementById(id).textContent='—');
+    document.getElementById('recentList').innerHTML='<div class="empty"><div class="ei">📋</div><p>ยังไม่มีข้อมูล</p></div>';
+    renderChart([]); return;
+  }
+  const last=entries[entries.length-1], calc=calcEntry(last,entries);
+  document.getElementById('sRemain').textContent=fmt(calc.remaining);
+  document.getElementById('sDays').textContent=calc.days?calc.days.toFixed(1):'—';
+  document.getElementById('sAvg').textContent=calc.avg?fmt(calc.avg):'—';
+
+  const days=calc.days||0, pct=Math.min(100,(days/10)*100);
+  const fill=document.getElementById('sbarFill'), lbl=document.getElementById('statusLabel');
+  fill.style.width=pct+'%';
+  document.getElementById('sbarLbl').textContent=days?`เหลือ ${days.toFixed(1)} วัน`:'';
+  if(days<1.5){fill.style.background='#dc2626';lbl.style.cssText='background:#fee2e2;color:#991b1b;font-size:11px;font-weight:600;padding:3px 9px;border-radius:7px';lbl.textContent='⚠️ วิกฤต';}
+  else if(days<3){fill.style.background='#d97706';lbl.style.cssText='background:#fef3c7;color:#92400e;font-size:11px;font-weight:600;padding:3px 9px;border-radius:7px';lbl.textContent='⚡ ต่ำ';}
+  else{fill.style.background='#16a34a';lbl.style.cssText='background:#dcfce7;color:#15803d;font-size:11px;font-weight:600;padding:3px 9px;border-radius:7px';lbl.textContent='✅ ปกติ';}
+
+  const bs=batchStats(batch);
+  document.getElementById('batchSummary').innerHTML=`<div class="bsum"><div class="bt">📊 สรุป ${batch.name}</div><div class="bg2">
+    <div class="bi"><div class="bl">รับเข้าอาหาร</div><div class="bv">${fmt(bs.totalRcv)} กก.</div></div>
+    <div class="bi"><div class="bl">ใช้ไปรวม</div><div class="bv">${fmt(bs.totalUsed)} กก.</div></div>
+    <div class="bi"><div class="bl">บันทึกแล้ว</div><div class="bv">${bs.days} วัน</div></div>
+  </div></div>`;
+
+  document.getElementById('recentList').innerHTML=[...entries].slice(-5).reverse().map(e=>{
+    const d=new Date(e.date), c2=calcEntry(e,entries);
+    let cls='bg',dStr='—';
+    if(c2.days!=null){dStr=c2.days.toFixed(1)+' วัน';if(c2.days<1.5)cls='br';else if(c2.days<3)cls='by';}
+    return`<div class="erow"><div class="edtb"><div class="day">${d.getDate()}</div><div class="mon">${MONTHS[d.getMonth()]}</div></div>
+      <div class="einf"><div class="w">ถัง1: ${fmt(e.w1)} | ถัง2: ${fmt(e.w2)}</div>
+      <div class="s">คงเหลือ ${fmt(c2.remaining)} กก.${e.received?` · รับเข้า ${fmt(e.received)} กก.`:''}</div></div>
+      <span class="ebadge ${cls}">${dStr}</span></div>`;
+  }).join('');
+  renderChart(entries);
+}
+
+// ─── PIGS PAGE ─────────────────────────────────────────────────────────────
+function renderPigs() {
+  const db=loadDB(), batch=getActiveBatch(db);
+  const evts=(batch?batch.pigEvents:[])||[];
+  const {count,totals}=calcPigCount(evts);
+  const hasData=evts.filter(e=>!PIG_META.includes(e.type)).length>0;
+
+  document.getElementById('pigHero').innerHTML=`<div class="pig-hero">
+    <div class="ph-top"><h3>🐷 จำนวนหมู — ${batch?batch.name:''}</h3></div>
+    <div class="ph-count">${hasData?fmt(count):'—'}</div>
+    <div class="ph-lbl">ตัวในฟาร์ม</div>
+    <div class="ph-grid">
+      <div class="ph-item"><div class="pi-val">${fmt(totals['รับเข้า'])}</div><div class="pi-lbl">รับเข้า</div></div>
+      <div class="ph-item"><div class="pi-val">${fmt(totals['ขาย'])}</div><div class="pi-lbl">ขาย</div></div>
+      <div class="ph-item"><div class="pi-val">${fmt(totals['ตาย'])}</div><div class="pi-lbl">ตาย</div></div>
+      <div class="ph-item"><div class="pi-val">${fmt(totals['ย้าย'])}</div><div class="pi-lbl">ย้าย</div></div>
+      <div class="ph-item"><div class="pi-val">${fmt(totals['คัดทิ้ง'])}</div><div class="pi-lbl">คัดทิ้ง</div></div>
+    </div></div>`;
+
+  if(!evts.length){
+    document.getElementById('pigEventList').innerHTML='<div class="empty"><div class="ei">🐷</div><p>กดปุ่มด้านบนเพื่อบันทึก</p></div>'; return;
+  }
+  document.getElementById('pigEventList').innerHTML=[...evts].reverse().map(e=>{
+    const cfg=EVT_CFG[e.type]||{icon:'📝',cls:'note',sign:''};
+    const isPos=PIG_POSITIVE.includes(e.type), isMeta=PIG_META.includes(e.type);
+    return`<div class="eitem">
+      <div class="etag ${cfg.cls}">${cfg.icon}</div>
+      <div class="einfo"><div class="et">${e.type} · ${fmtDate(e.date)}</div>${e.note?`<div class="es">${e.note}</div>`:''}</div>
+      ${!isMeta?`<div class="enum ${isPos?'pos':'neg'}">${cfg.sign}${fmt(e.count)}</div>`:''}
+      <button onclick="deletePigEvent(${e.id})" style="margin-left:4px;width:24px;height:24px;border-radius:6px;border:none;background:#fee2e2;color:#dc2626;cursor:pointer;font-size:11px;flex-shrink:0">✕</button>
+    </div>`;
+  }).join('');
+}
+
+// ─── PIG MODAL ─────────────────────────────────────────────────────────────
+let currentPigType='';
+const PIG_INFO={
+  'รับเข้า':{icon:'🚛',sub:'จำนวนหมูที่รับเข้าฟาร์มวันนี้'},
+  'ขาย':    {icon:'💰',sub:'จำนวนหมูที่ขายออกไป'},
+  'ตาย':    {icon:'💀',sub:'จำนวนหมูที่ตาย'},
+  'ย้าย':   {icon:'🚚',sub:'จำนวนหมูที่ย้ายออก'},
+  'คัดทิ้ง':{icon:'🗑️',sub:'จำนวนหมูที่คัดออกจากฝูง'},
+  'หมายเหตุ':{icon:'📝',sub:'บันทึกข้อความทั่วไป'},
+};
+
+function openPigModal(type) {
+  currentPigType=type;
+  const info=PIG_INFO[type]||{icon:'📝',sub:''};
+  document.getElementById('pmIcon').textContent=info.icon;
+  document.getElementById('pmTitle').textContent=type;
+  document.getElementById('pmSub').textContent=info.sub;
+  document.getElementById('pmDate').value=new Date().toISOString().split('T')[0];
+  document.getElementById('pmCount').value='';
+  document.getElementById('pmNote').value='';
+  document.getElementById('pmCountWrap').style.display=type==='หมายเหตุ'?'none':'block';
+  document.getElementById('ovPig').classList.add('open');
+}
+
+function savePigEvent() {
+  const date=document.getElementById('pmDate').value;
+  const count=parseInt(document.getElementById('pmCount').value)||0;
+  const note=document.getElementById('pmNote').value.trim();
+  if(!date){showToast('⚠️ เลือกวันที่ด้วย');return;}
+  if(currentPigType!=='หมายเหตุ'&&count<=0){showToast('⚠️ ใส่จำนวนด้วย');return;}
+  const db=loadDB(), batch=getActiveBatch(db);
+  if(!batch.pigEvents) batch.pigEvents=[];
+  batch.pigEvents.push({id:Date.now(),type:currentPigType,date,count,note});
+  batch.pigEvents.sort((a,b)=>new Date(a.date)-new Date(b.date));
+  saveDB(db);
+  document.getElementById('ovPig').classList.remove('open');
+  showToast(`✅ บันทึก${currentPigType}แล้ว`);
+  renderPigs();
+  if(curPage==='home') renderHome();
+}
+
+function deletePigEvent(id) {
+  if(!confirm('ลบรายการนี้?'))return;
+  const db=loadDB(),batch=getActiveBatch(db);
+  batch.pigEvents=(batch.pigEvents||[]).filter(e=>e.id!==id);
+  saveDB(db); renderPigs(); showToast('🗑️ ลบแล้ว');
+}
+
+// ─── FORM ──────────────────────────────────────────────────────────────────
+function resetForm(){
+  document.getElementById('fDate').value=new Date().toISOString().split('T')[0];
+  ['fW1','fW2','fRcv'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('cbRcv').checked=false;
+  document.getElementById('rcvField').style.display='none';
+  document.getElementById('fpreview').style.display='none';
+}
+document.getElementById('cbRcv').addEventListener('change',function(){
+  document.getElementById('rcvField').style.display=this.checked?'block':'none'; updatePreview();
+});
+['fW1','fW2','fRcv'].forEach(id=>document.getElementById(id).addEventListener('input',updatePreview));
+
+function updatePreview(){
+  const w1=parseFloat(document.getElementById('fW1').value)||0;
+  const w2=parseFloat(document.getElementById('fW2').value)||0;
+  if(!w1&&!w2){document.getElementById('fpreview').style.display='none';return;}
+  const rcv=document.getElementById('cbRcv').checked?parseFloat(document.getElementById('fRcv').value)||0:0;
+  const rem=w1+w2, entries=(getActiveBatch(loadDB())||{entries:[]}).entries;
+  let used=null,avg=null;
+  if(entries.length){
+    const last=entries[entries.length-1];
+    used=(last.w1||0)+(last.w2||0)+rcv-rem;
+    const ua=[];
+    for(let i=Math.max(1,entries.length-5);i<entries.length;i++){
+      const p=entries[i-1],c=entries[i];
+      const u=(p.w1||0)+(p.w2||0)+(c.received||0)-((c.w1||0)+(c.w2||0));
+      if(u>0)ua.push(u);
+    }
+    if(ua.length)avg=ua.reduce((a,b)=>a+b)/ua.length;
+  }
+  document.getElementById('pRemain').textContent=fmt(rem)+' กก.';
+  document.getElementById('pUsed').textContent=used!=null?fmt(used)+' กก.':'—';
+  document.getElementById('pDays').textContent=avg&&avg>0?(rem/avg).toFixed(1)+' วัน':'—';
+  document.getElementById('pAvg').textContent=avg?fmt(avg)+' กก./วัน':'—';
+  document.getElementById('fpreview').style.display='block';
+}
+
+function saveEntry(){
+  const date=document.getElementById('fDate').value;
+  const w1=parseFloat(document.getElementById('fW1').value);
+  const w2=parseFloat(document.getElementById('fW2').value);
+  if(!date){showToast('⚠️ เลือกวันที่ด้วย');return;}
+  if(isNaN(w1)||isNaN(w2)){showToast('⚠️ กรอกน้ำหนักทั้ง 2 ถัง');return;}
+  const rcv=document.getElementById('cbRcv').checked?parseFloat(document.getElementById('fRcv').value)||0:0;
+  const db=loadDB(), batch=getActiveBatch(db);
+  batch.entries.push({id:Date.now(),date,w1,w2,received:rcv});
+  batch.entries.sort((a,b)=>new Date(a.date)-new Date(b.date));
+  saveDB(db); showToast('✅ บันทึกแล้ว');
+  setTimeout(()=>showPage('home',document.querySelector('.nb')),600);
+}
+
+// ─── HISTORY ───────────────────────────────────────────────────────────────
+document.getElementById('filterRow').querySelectorAll('.fchip').forEach(btn=>{
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('.fchip').forEach(b=>b.classList.remove('active'));
+    this.classList.add('active'); curFilter=this.dataset.f; renderHistory(curFilter);
+  });
+});
+
+function renderHistory(filter){
+  const db=loadDB(), batch=getActiveBatch(db);
+  let entries=batch?[...batch.entries]:[];
+  const now=new Date();
+  if(filter==='7'){const c=new Date(now-7*86400000).toISOString().split('T')[0];entries=entries.filter(e=>e.date>=c);}
+  if(filter==='30'){const c=new Date(now-30*86400000).toISOString().split('T')[0];entries=entries.filter(e=>e.date>=c);}
+  if(filter==='rcv')entries=entries.filter(e=>e.received>0);
+  const all=batch?batch.entries:[];
+  if(!entries.length){document.getElementById('historyList').innerHTML='<div class="empty"><div class="ei">📋</div><p>ไม่มีข้อมูล</p></div>';return;}
+  document.getElementById('historyList').innerHTML=[...entries].reverse().map(e=>{
+    const c=calcEntry(e,all);
+    let ec='',dc='gc';
+    if(c.days!=null){if(c.days<1.5){ec='dg';dc='rc2';}else if(c.days<3){ec='wn';dc='yc';}}
+    if(e.received>0)ec='rc';
+    return`<div class="hentry ${ec}" id="he-${e.id}">
+      <button class="delbtn" onclick="delFeed(${e.id})">✕</button>
+      <div class="he-hd"><div class="he-dt">📅 ${fmtDate(e.date)}</div>${e.received?`<div class="he-rc">🚛 +${fmt(e.received)} กก.</div>`:''}</div>
+      <div class="he-g">
+        <div class="he-i"><div class="hl">ถัง 1</div><div class="hv">${fmt(e.w1)}</div></div>
+        <div class="he-i"><div class="hl">ถัง 2</div><div class="hv">${fmt(e.w2)}</div></div>
+        <div class="he-i"><div class="hl">คงเหลือ</div><div class="hv gc">${fmt(c.remaining)}</div></div>
+        <div class="he-i"><div class="hl">ใช้ไป</div><div class="hv">${c.used!=null?fmt(c.used):'—'}</div></div>
+        <div class="he-i" style="grid-column:span 2"><div class="hl">ใช้ได้อีก</div><div class="hv ${dc}">${c.days!=null?c.days.toFixed(2)+' วัน':'—'}</div></div>
+      </div></div>`;
+  }).join('');
+}
+
+function renderPigHistory(){
+  const db=loadDB(), batch=getActiveBatch(db);
+  const evts=(batch?batch.pigEvents:[])||[];
+  if(!evts.length){document.getElementById('pigHistoryList').innerHTML='<div class="empty"><div class="ei">🐷</div><p>ยังไม่มีข้อมูล</p></div>';return;}
+  let running=0;
+  const withRunning=[...evts].map(e=>{
+    if(!PIG_META.includes(e.type)){
+      if(PIG_POSITIVE.includes(e.type))running+=e.count||0;
+      else running-=e.count||0;
+    }
+    return{...e,running};
+  });
+  document.getElementById('pigHistoryList').innerHTML=[...withRunning].reverse().map(e=>{
+    const cfg=EVT_CFG[e.type]||{icon:'📝',cls:'note',sign:''};
+    const isPos=PIG_POSITIVE.includes(e.type), isMeta=PIG_META.includes(e.type);
+    return`<div class="hentry${isPos?' rc':''}" id="pe-${e.id}">
+      <button class="delbtn" onclick="deletePigEvent(${e.id});renderPigHistory()">✕</button>
+      <div class="he-hd">
+        <div class="he-dt">${cfg.icon} ${e.type} · ${fmtDate(e.date)}</div>
+        ${!isMeta?`<div class="he-rc" style="background:${isPos?'#dbeafe':'#fee2e2'};color:${isPos?'#1d4ed8':'#991b1b'}">${cfg.sign}${fmt(e.count)} ตัว</div>`:''}
+      </div>
+      <div class="he-g">
+        ${!isMeta?`<div class="he-i" style="grid-column:span 2"><div class="hl">คงเหลือสะสม</div><div class="hv gc">${fmt(e.running)} ตัว</div></div>`:''}
+        ${e.note?`<div class="he-i" style="grid-column:span ${isMeta?4:2}"><div class="hl">หมายเหตุ</div><div class="hv" style="font-size:12px;font-weight:400">${e.note}</div></div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function delFeed(id){
+  if(!confirm('ลบรายการนี้?'))return;
+  const db=loadDB(),batch=getActiveBatch(db);
+  batch.entries=batch.entries.filter(e=>e.id!==id);
+  saveDB(db); renderHistory(curFilter); showToast('🗑️ ลบแล้ว');
+}
+
+// ─── CHART ─────────────────────────────────────────────────────────────────
+function renderChart(entries){
+  const canvas=document.getElementById('chartCanvas');
+  const ctx=canvas.getContext('2d');
+  const W=canvas.parentElement.clientWidth-24;
+  canvas.width=W; canvas.height=120; ctx.clearRect(0,0,W,120);
+  const last8=entries.slice(-8);
+  if(last8.length<2){ctx.fillStyle='#9ca3af';ctx.font='11px sans-serif';ctx.textAlign='center';ctx.fillText('ต้องการข้อมูลอย่างน้อย 2 วัน',W/2,60);return;}
+  const ud=[];
+  for(let i=1;i<last8.length;i++){const p=last8[i-1],c=last8[i];ud.push({date:c.date,used:Math.max(0,(p.w1||0)+(p.w2||0)+(c.received||0)-((c.w1||0)+(c.w2||0)))});}
+  const maxV=Math.max(...ud.map(d=>d.used),1),pad={t:10,r:8,b:28,l:38};
+  const cW=W-pad.l-pad.r,cH=120-pad.t-pad.b,bW=Math.min(28,(cW/ud.length)-5);
+  [.25,.5,.75,1].forEach(p=>{
+    const y=pad.t+cH*(1-p);
+    ctx.strokeStyle='#f3f4f6';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(W-pad.r,y);ctx.stroke();
+    ctx.fillStyle='#9ca3af';ctx.font='9px sans-serif';ctx.textAlign='right';ctx.fillText(Math.round(maxV*p),pad.l-3,y+3);
+  });
+  ud.forEach((d,i)=>{
+    const x=pad.l+(i+.5)*(cW/ud.length),bH=(d.used/maxV)*cH,y=pad.t+cH-bH;
+    const grad=ctx.createLinearGradient(0,y,0,y+bH);grad.addColorStop(0,'#16a34a');grad.addColorStop(1,'#86efac');
+    ctx.fillStyle=grad;const rx=4,bx=x-bW/2;
+    ctx.beginPath();ctx.moveTo(bx+rx,y);ctx.lineTo(bx+bW-rx,y);ctx.arcTo(bx+bW,y,bx+bW,y+rx,rx);ctx.lineTo(bx+bW,y+bH);ctx.lineTo(bx,y+bH);ctx.lineTo(bx,y+rx);ctx.arcTo(bx,y,bx+rx,y,rx);ctx.closePath();ctx.fill();
+    const dt=new Date(d.date);ctx.fillStyle='#6b7280';ctx.font='9px sans-serif';ctx.textAlign='center';
+    ctx.fillText(`${dt.getDate()} ${MONTHS[dt.getMonth()]}`,x,120-pad.b+11);
+  });
+}
+
+// ─── BATCH MODAL ───────────────────────────────────────────────────────────
+function openBatchModal(){
+  const db=loadDB();
+  document.getElementById('mbName').value=`รุ่น ${db.batches.length+1}`;
+  document.getElementById('mbDate').value=new Date().toISOString().split('T')[0];
+  document.getElementById('ovBatch').classList.add('open');
+}
+function confirmNewBatch(){
+  const name=document.getElementById('mbName').value.trim();
+  const startDate=document.getElementById('mbDate').value;
+  if(!name||!startDate){showToast('⚠️ กรอกข้อมูลให้ครบ');return;}
+  const db=loadDB();
+  const newId=Math.max(...db.batches.map(b=>b.id))+1;
+  db.batches.push({id:newId,name,startDate,entries:[],pigEvents:[]});
+  db.activeBatchId=newId; saveDB(db);
+  document.getElementById('ovBatch').classList.remove('open');
+  renderBatchHeader(); showPage('home',document.querySelector('.nb'));
+  showToast(`🎉 สร้าง${name}แล้ว`);
+}
+
+// ─── TOAST ─────────────────────────────────────────────────────────────────
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+
+// ─── INIT ──────────────────────────────────────────────────────────────────
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+renderBatchHeader();
+renderHome();
+</script>
+</body>
+</html>
