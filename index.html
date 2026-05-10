@@ -168,7 +168,7 @@
     /* BSUM */
     .bsum{background:linear-gradient(135deg,#14532d,#15803d);border-radius:14px;padding:14px;margin-bottom:12px;color:#fff}
     .bsum .bt{font-size:13px;font-weight:700;opacity:.8;margin-bottom:8px}
-    .bsum .bg2{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .bsum .bg2{display:grid;grid-template-columns:repeat(3,1fr);gap:8px 10px}
     .bsum .bi .bl{font-size:10px;opacity:.7}
     .bsum .bi .bv{font-size:15px;font-weight:700}
 
@@ -481,10 +481,12 @@ function calcPigCount(pigEvents) {
 function calcEntry(entry, entries) {
   const idx = entries.findIndex(e => e.id === entry.id);
   const remaining = (entry.w1||0)+(entry.w2||0);
-  let used = null;
+  let used = null, usedT1 = null, usedT2 = null;
   if (idx > 0) {
     const prev = entries[idx-1];
     used = (prev.w1||0)+(prev.w2||0)+(entry.received||0)-remaining;
+    usedT1 = (prev.w1||0) - (entry.w1||0);
+    usedT2 = (prev.w2||0) - (entry.w2||0);
   }
   const ua = [];
   for (let i=Math.max(1,idx-4); i<=idx; i++) {
@@ -493,22 +495,25 @@ function calcEntry(entry, entries) {
     if(u>0) ua.push(u);
   }
   const avg = ua.length ? ua.reduce((a,b)=>a+b)/ua.length : null;
-  return { remaining, used, avg, days: avg&&avg>0 ? remaining/avg : null };
+  return { remaining, used, usedT1, usedT2, avg, days: avg&&avg>0 ? remaining/avg : null };
 }
 
 function batchStats(batch) {
   const entries = batch.entries;
-  let totalRcv=0, usedArr=[];
+  let totalRcv=0, usedArr=[], totalUsedT1=0, totalUsedT2=0;
   entries.forEach(e => totalRcv += (e.received||0));
   for (let i=1;i<entries.length;i++){
     const p=entries[i-1],c=entries[i];
     const u=(p.w1||0)+(p.w2||0)+(c.received||0)-((c.w1||0)+(c.w2||0));
     if(u>0) usedArr.push(u);
+    const d1=(p.w1||0)-(c.w1||0), d2=(p.w2||0)-(c.w2||0);
+    if(d1>0) totalUsedT1+=d1;
+    if(d2>0) totalUsedT2+=d2;
   }
   const last = entries[entries.length-1];
   const currentRemaining = last ? (last.w1||0)+(last.w2||0) : 0;
   const totalUsed = totalRcv - currentRemaining;
-  return { totalRcv, totalUsed, days:entries.length,
+  return { totalRcv, totalUsed, totalUsedT1, totalUsedT2, days:entries.length,
     avgPerDay: usedArr.length?usedArr.reduce((a,b)=>a+b)/usedArr.length:0 };
 }
 
@@ -597,6 +602,8 @@ function renderHome() {
     <div class="bi"><div class="bl">รับเข้าอาหาร</div><div class="bv">${fmt(bs.totalRcv)} กก.</div></div>
     <div class="bi"><div class="bl">ใช้ไปรวม</div><div class="bv">${fmt(bs.totalUsed)} กก.</div></div>
     <div class="bi"><div class="bl">บันทึกแล้ว</div><div class="bv">${bs.days} วัน</div></div>
+    <div class="bi"><div class="bl">ถัง 1 ใช้ไป</div><div class="bv">${fmt(bs.totalUsedT1)} กก.</div></div>
+    <div class="bi"><div class="bl">ถัง 2 ใช้ไป</div><div class="bv">${fmt(bs.totalUsedT2)} กก.</div></div>
   </div></div>`;
 
   document.getElementById('recentList').innerHTML=[...entries].slice(-5).reverse().map(e=>{
@@ -896,7 +903,9 @@ function renderHistory(filter){
         <div class="he-i"><div class="hl">ถัง 1</div><div class="hv">${fmt(e.w1)}</div></div>
         <div class="he-i"><div class="hl">ถัง 2</div><div class="hv">${fmt(e.w2)}</div></div>
         <div class="he-i"><div class="hl">คงเหลือ</div><div class="hv gc">${fmt(c.remaining)}</div></div>
-        <div class="he-i"><div class="hl">ใช้ไป</div><div class="hv">${c.used!=null?fmt(c.used):'—'}</div></div>
+        <div class="he-i"><div class="hl">ใช้ไปรวม</div><div class="hv">${c.used!=null?fmt(c.used):'—'}</div></div>
+        <div class="he-i"><div class="hl">ถัง1 ใช้ไป</div><div class="hv">${c.usedT1!=null&&c.usedT1>0?fmt(c.usedT1):'—'}</div></div>
+        <div class="he-i"><div class="hl">ถัง2 ใช้ไป</div><div class="hv">${c.usedT2!=null&&c.usedT2>0?fmt(c.usedT2):'—'}</div></div>
         <div class="he-i" style="grid-column:span 2"><div class="hl">ใช้ได้อีก</div><div class="hv ${dc}">${c.days!=null?c.days.toFixed(2)+' วัน':'—'}</div></div>
       </div></div>`;
   }).join('');
