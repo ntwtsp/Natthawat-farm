@@ -41,7 +41,27 @@
     .nb{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 0 7px;border:none;background:none;cursor:pointer;color:#9ca3af;font-family:inherit;transition:color .2s}
     .nb.active{color:var(--g)}
     .nb svg{width:21px;height:21px}
-    .nb span{font-size:10px;font-weight:500}
+    .nb span{font-size:9px;font-weight:500}
+
+    /* EXPENSE */
+    .exp-sum{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+    .exp-sc{border-radius:14px;padding:13px 12px;box-shadow:var(--shad)}
+    .exp-sc .ei2{font-size:18px;margin-bottom:3px}
+    .exp-sc .ev{font-size:18px;font-weight:700;line-height:1.1}
+    .exp-sc .el{font-size:10px;color:var(--gray);margin-top:2px}
+    .exp-total{background:linear-gradient(135deg,#1e1b4b,#3730a3);border-radius:14px;padding:14px;margin-bottom:12px;color:#fff;text-align:center}
+    .exp-total .ett{font-size:12px;opacity:.75;margin-bottom:4px}
+    .exp-total .etv{font-size:28px;font-weight:800}
+    .exp-sec{background:#fff;border-radius:14px;padding:14px;box-shadow:var(--shad);margin-bottom:10px}
+    .exp-sec-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+    .exp-sec-title{font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px}
+    .exp-add-btn{padding:5px 12px;border-radius:8px;border:none;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;background:var(--gp);color:var(--gd)}
+    .exp-item{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid #f3f4f6}
+    .exp-item:last-child{border-bottom:none}
+    .exp-item .ed{font-size:12px;color:var(--gray)}
+    .exp-item .en{font-size:12px;font-weight:600;color:#374151}
+    .exp-item .ea{font-size:15px;font-weight:700;color:#111827}
+    .exp-empty{text-align:center;padding:16px;font-size:12px;color:var(--gray)}
 
     /* PAGES */
     .page{display:none;padding:14px 14px calc(76px + var(--sb));animation:fi .2s ease}
@@ -326,6 +346,12 @@
   </div>
 </div>
 
+<!-- EXPENSE PAGE -->
+<div id="page-expense" class="page">
+  <div id="expSummary"></div>
+  <div id="expSections"></div>
+</div>
+
 <!-- NAV -->
 <nav class="nav">
   <button class="nb active" onclick="showPage('home',this)">
@@ -343,6 +369,10 @@
   <button class="nb" onclick="showPage('history',this)">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
     <span>ประวัติ</span>
+  </button>
+  <button class="nb" onclick="showPage('expense',this)">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+    <span>ค่าใช้จ่าย</span>
   </button>
 </nav>
 
@@ -380,6 +410,20 @@
     <div class="fs"><label>หมายเหตุ (ไม่บังคับ)</label><textarea id="pmNote" placeholder="รายละเอียดเพิ่มเติม..."></textarea></div>
     <button class="mbtn pri" onclick="savePigEvent()">💾 บันทึก</button>
     <button class="mbtn cnl" onclick="document.getElementById('ovPig').classList.remove('open')">ยกเลิก</button>
+  </div>
+</div>
+
+<!-- MODAL: EXPENSE -->
+<div class="overlay" id="ovExp" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <h3 id="expModalTitle">➕ เพิ่มค่าใช้จ่าย</h3>
+    <div class="fs" id="expMonthWrap" style="display:none"><label>เดือน</label><input type="month" id="expMonth" /></div>
+    <div class="fs" id="expDateWrap"><label>วันที่</label><input type="date" id="expDate" /></div>
+    <div class="fs" id="expNameWrap" style="display:none"><label>รายการ</label><input type="text" id="expName" placeholder="เช่น ค่าวัคซีน, ค่าซ่อมเครื่อง..." /></div>
+    <div class="fs"><label>จำนวนเงิน (บาท)</label><input type="number" id="expAmount" placeholder="0" min="0" inputmode="decimal" /></div>
+    <div class="fs"><label>หมายเหตุ (ไม่บังคับ)</label><textarea id="expNote" placeholder="รายละเอียดเพิ่มเติม..."></textarea></div>
+    <button class="mbtn pri" onclick="saveExpense()">💾 บันทึก</button>
+    <button class="mbtn cnl" onclick="document.getElementById('ovExp').classList.remove('open')">ยกเลิก</button>
   </div>
 </div>
 
@@ -442,14 +486,14 @@ function loadDB() {
     batches: [{
       id: 1, name: 'รุ่น 1', startDate: '2026-02-23',
       entries: SEED_FEED.map((e, i) => ({ id: i+1, ...e })),
-      pigEvents: [], weightRecords: [], intakeAvgWeight: null
+      pigEvents: [], weightRecords: [], intakeAvgWeight: null, expenseRecords: []
     }]
   };
   // migrate from v2
   try {
     const v2 = JSON.parse(localStorage.getItem('pigFeedData_v2'));
     if (v2 && v2.batches) {
-      initial.batches = v2.batches.map(b => ({ ...b, pigEvents: b.pigEvents || [], weightRecords: b.weightRecords || [], intakeAvgWeight: b.intakeAvgWeight || null }));
+      initial.batches = v2.batches.map(b => ({ ...b, pigEvents: b.pigEvents || [], weightRecords: b.weightRecords || [], intakeAvgWeight: b.intakeAvgWeight || null, expenseRecords: b.expenseRecords || [] }));
       initial.activeBatchId = v2.activeBatchId;
     }
   } catch {}
@@ -543,6 +587,7 @@ function showPage(name, btn) {
   if(name==='pigs') renderPigs();
   if(name==='history'){renderHistory(curFilter);renderPigHistory();}
   if(name==='add') resetForm();
+  if(name==='expense') renderExpense();
 }
 
 function switchHistTab(tab,btn) {
@@ -993,11 +1038,120 @@ function confirmNewBatch(){
   if(!name||!startDate){showToast('⚠️ กรอกข้อมูลให้ครบ');return;}
   const db=loadDB();
   const newId=Math.max(...db.batches.map(b=>b.id))+1;
-  db.batches.push({id:newId,name,startDate,entries:[],pigEvents:[],weightRecords:[],intakeAvgWeight:null});
+  db.batches.push({id:newId,name,startDate,entries:[],pigEvents:[],weightRecords:[],intakeAvgWeight:null,expenseRecords:[]});
   db.activeBatchId=newId; saveDB(db);
   document.getElementById('ovBatch').classList.remove('open');
   renderBatchHeader(); showPage('home',document.querySelector('.nb'));
   showToast(`🎉 สร้าง${name}แล้ว`);
+}
+
+// ─── EXPENSE ───────────────────────────────────────────────────────────────
+const EXP_CFG = {
+  electricity: {icon:'💡', label:'ค่าไฟ',    color:'#fbbf24', bg:'#fffbeb'},
+  fuel:        {icon:'⛽', label:'ค่าน้ำมัน', color:'#f97316', bg:'#fff7ed'},
+  water:       {icon:'💧', label:'ค่าน้ำ',   color:'#38bdf8', bg:'#f0f9ff'},
+  other:       {icon:'📋', label:'อื่นๆ',    color:'#8b5cf6', bg:'#faf5ff'},
+};
+let _expType = 'electricity';
+
+function fmtMoney(v){ return Number(v).toLocaleString('th-TH',{maximumFractionDigits:0}); }
+function fmtMonth(s){ const [y,m]=s.split('-'); return`${MONTHS[parseInt(m)-1]} ${parseInt(y)+543}`; }
+
+function renderExpense() {
+  const db=loadDB(), batch=getActiveBatch(db);
+  const records = (batch?.expenseRecords || []);
+
+  const totals = {electricity:0, fuel:0, water:0, other:0};
+  records.forEach(r => { if(totals[r.type]!==undefined) totals[r.type] += r.amount||0; });
+  const grandTotal = Object.values(totals).reduce((a,b)=>a+b, 0);
+
+  document.getElementById('expSummary').innerHTML = `
+    <div class="exp-total">
+      <div class="ett">💰 รวมค่าใช้จ่าย ${batch?.name||''}</div>
+      <div class="etv">${fmtMoney(grandTotal)} บาท</div>
+    </div>
+    <div class="exp-sum">
+      ${Object.entries(EXP_CFG).map(([type,cfg])=>`
+        <div class="exp-sc" style="background:${cfg.bg}">
+          <div class="ei2">${cfg.icon}</div>
+          <div class="ev" style="color:${cfg.color}">${fmtMoney(totals[type])}</div>
+          <div class="el">${cfg.label} (บาท)</div>
+        </div>`).join('')}
+    </div>`;
+
+  document.getElementById('expSections').innerHTML = Object.entries(EXP_CFG).map(([type,cfg])=>{
+    const items = records.filter(r=>r.type===type).sort((a,b)=>{
+      const da = a.period||a.date, db2 = b.period||b.date;
+      return da > db2 ? -1 : da < db2 ? 1 : 0;
+    });
+    return `<div class="exp-sec">
+      <div class="exp-sec-hd">
+        <div class="exp-sec-title"><span>${cfg.icon}</span>${cfg.label}</div>
+        <button class="exp-add-btn" onclick="openExpenseModal('${type}')" style="background:${cfg.bg};color:${cfg.color}">+ เพิ่ม</button>
+      </div>
+      ${items.length ? items.map(r=>`
+        <div class="exp-item">
+          <div>
+            <div class="ed">${r.type==='electricity'?fmtMonth(r.period):fmtDate(r.date)}${r.name?` · ${r.name}`:''}</div>
+            ${r.note?`<div style="font-size:10px;color:var(--gray);margin-top:1px">${r.note}</div>`:''}
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="ea">${fmtMoney(r.amount)} <span style="font-size:10px;color:var(--gray)">บาท</span></div>
+            <button onclick="deleteExpense(${r.id})" style="width:22px;height:22px;border-radius:5px;border:none;background:#fee2e2;color:#dc2626;cursor:pointer;font-size:10px;flex-shrink:0">✕</button>
+          </div>
+        </div>`).join('')
+      : `<div class="exp-empty">ยังไม่มีข้อมูล</div>`}
+    </div>`;
+  }).join('');
+}
+
+function openExpenseModal(type) {
+  _expType = type;
+  const cfg = EXP_CFG[type];
+  document.getElementById('expModalTitle').textContent = `${cfg.icon} เพิ่ม${cfg.label}`;
+  const isElec = type === 'electricity';
+  const isOther = type === 'other';
+  document.getElementById('expMonthWrap').style.display = isElec ? 'block' : 'none';
+  document.getElementById('expDateWrap').style.display  = isElec ? 'none' : 'block';
+  document.getElementById('expNameWrap').style.display  = isOther ? 'block' : 'none';
+  const now = new Date();
+  document.getElementById('expMonth').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  document.getElementById('expDate').value  = now.toISOString().split('T')[0];
+  document.getElementById('expName').value  = '';
+  document.getElementById('expAmount').value = '';
+  document.getElementById('expNote').value   = '';
+  document.getElementById('ovExp').classList.add('open');
+}
+
+function saveExpense() {
+  const amount = parseFloat(document.getElementById('expAmount').value);
+  if(isNaN(amount)||amount<=0){showToast('⚠️ ใส่จำนวนเงินด้วย');return;}
+  const isElec = _expType === 'electricity';
+  const isOther = _expType === 'other';
+  const period = document.getElementById('expMonth').value;
+  const date   = document.getElementById('expDate').value;
+  const name   = document.getElementById('expName').value.trim();
+  const note   = document.getElementById('expNote').value.trim();
+  if(isElec && !period){showToast('⚠️ เลือกเดือนด้วย');return;}
+  if(!isElec && !date){showToast('⚠️ เลือกวันที่ด้วย');return;}
+  if(isOther && !name){showToast('⚠️ ใส่รายการด้วย');return;}
+  const db=loadDB(), batch=getActiveBatch(db);
+  if(!batch.expenseRecords) batch.expenseRecords=[];
+  const rec = {id:Date.now(), type:_expType, amount, note};
+  if(isElec) rec.period = period; else rec.date = date;
+  if(isOther) rec.name = name;
+  batch.expenseRecords.push(rec);
+  saveDB(db);
+  document.getElementById('ovExp').classList.remove('open');
+  showToast(`✅ บันทึก${EXP_CFG[_expType].label}แล้ว`);
+  renderExpense();
+}
+
+function deleteExpense(id) {
+  if(!confirm('ลบรายการนี้?'))return;
+  const db=loadDB(), batch=getActiveBatch(db);
+  batch.expenseRecords=(batch.expenseRecords||[]).filter(r=>r.id!==id);
+  saveDB(db); renderExpense(); showToast('🗑️ ลบแล้ว');
 }
 
 // ─── TOAST ─────────────────────────────────────────────────────────────────
