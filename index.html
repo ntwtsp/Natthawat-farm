@@ -294,6 +294,10 @@
 
   <div class="stitle">กราฟการใช้ 7 วัน</div>
   <div class="card" style="padding:12px"><canvas id="chartCanvas" height="120" style="width:100%"></canvas></div>
+
+  <button onclick="exportToExcel()" style="width:100%;padding:15px;background:linear-gradient(135deg,#1d4ed8,#2563eb);color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;box-shadow:0 4px 14px rgba(37,99,235,.35);display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:4px">
+    <span style="font-size:20px">📊</span> ส่งออกข้อมูล Excel
+  </button>
 </div>
 
 <!-- PIGS PAGE -->
@@ -474,6 +478,7 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
 <script>
 // ─── SEED ──────────────────────────────────────────────────────────────────
 const SEED_FEED = [
@@ -1272,6 +1277,60 @@ function deleteExpense(id) {
   const db=loadDB(), batch=getActiveBatch(db);
   batch.expenseRecords=(batch.expenseRecords||[]).filter(r=>r.id!==id);
   saveDB(db); renderExpense(); showToast('🗑️ ลบแล้ว');
+}
+
+// ─── EXPORT EXCEL ──────────────────────────────────────────────────────────
+function exportToExcel() {
+  if(typeof XLSX === 'undefined'){ showToast('⚠️ กรุณาเชื่อมต่ออินเตอร์เน็ตก่อน Export'); return; }
+  const db=loadDB(), batch=getActiveBatch(db);
+  if(!batch){ showToast('⚠️ ไม่มีข้อมูล'); return; }
+
+  // ── Sheet 1: อาหาร ──
+  const feedHeader = ['วันที่','ถัง 1 (กก.)','ถัง 2 (กก.)','รับเข้า (กก.)','คงเหลือ (กก.)','ใช้ไป (กก.)','เฉลี่ย/วัน (กก.)','ใช้ได้อีก (วัน)','ถัง1 ใช้ (กก.)','ถัง2 ใช้ (กก.)'];
+  const feedRows = batch.entries.map(e => {
+    const c = calcEntry(e, batch.entries);
+    return [
+      e.date,
+      e.w1||0, e.w2||0, e.received||0,
+      c.remaining,
+      c.used!=null ? Math.round(c.used) : '',
+      c.avg!=null ? +c.avg.toFixed(1) : '',
+      c.days!=null ? +c.days.toFixed(1) : '',
+      c.usedT1!=null&&c.usedT1>0 ? Math.round(c.usedT1) : '',
+      c.usedT2!=null&&c.usedT2>0 ? Math.round(c.usedT2) : '',
+    ];
+  });
+  const bs = batchStats(batch);
+  const feedSummary = [
+    [],
+    ['สรุป','รับเข้าอาหารรวม (กก.)',bs.totalRcv],
+    ['','ใช้ไปรวม (กก.)',bs.totalUsed],
+    ['','ถัง1 ใช้ไปรวม (กก.)',bs.totalUsedT1],
+    ['','ถัง2 ใช้ไปรวม (กก.)',bs.totalUsedT2],
+    ['','จำนวนวันที่บันทึก (วัน)',bs.days],
+  ];
+  const ws1 = XLSX.utils.aoa_to_sheet([feedHeader, ...feedRows, ...feedSummary]);
+  ws1['!cols'] = [{wch:12},{wch:10},{wch:10},{wch:12},{wch:12},{wch:12},{wch:14},{wch:14},{wch:12},{wch:12}];
+
+  // ── Sheet 2: จำนวนหมู ──
+  const pigHeader = ['วันที่','ประเภท','จำนวน (ตัว)','หมายเหตุ','คงเหลือสะสม (ตัว)'];
+  let running = 0;
+  const pigRows = (batch.pigEvents||[]).map(e => {
+    const isMeta = PIG_META.includes(e.type);
+    const isPos = PIG_POSITIVE.includes(e.type);
+    if(!isMeta){ running += isPos ? (e.count||0) : -(e.count||0); }
+    return [e.date, e.type, isMeta?'':e.count||0, e.note||'', isMeta?'':running];
+  });
+  const ws2 = XLSX.utils.aoa_to_sheet([pigHeader, ...pigRows]);
+  ws2['!cols'] = [{wch:12},{wch:12},{wch:14},{wch:30},{wch:16}];
+
+  // ── สร้างไฟล์ ──
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws1, 'อาหาร');
+  XLSX.utils.book_append_sheet(wb, ws2, 'จำนวนหมู');
+  const today = new Date().toISOString().split('T')[0];
+  XLSX.writeFile(wb, `${batch.name}_${today}.xlsx`);
+  showToast('📥 ดาวน์โหลด Excel แล้ว');
 }
 
 // ─── CLOUD SYNC ────────────────────────────────────────────────────────────
