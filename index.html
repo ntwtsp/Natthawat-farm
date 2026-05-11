@@ -409,10 +409,10 @@
 <!-- MODAL: NEW BATCH -->
 <div class="overlay" id="ovBatch" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal">
-    <h3>🐣 เพิ่มรุ่นใหม่</h3>
-    <div class="fs"><label>ชื่อรุ่น</label><input type="text" id="mbName" placeholder="เช่น รุ่น 2" /></div>
+    <h3>🐣 เพิ่มเล้าใหม่</h3>
+    <div class="fs"><label>ชื่อเล้า</label><input type="text" id="mbName" placeholder="เช่น เล้า 2" /></div>
     <div class="fs"><label>วันที่เริ่ม</label><input type="date" id="mbDate" /></div>
-    <button class="mbtn pri" onclick="confirmNewBatch()">✅ สร้างรุ่นใหม่</button>
+    <button class="mbtn pri" onclick="confirmNewBatch()">✅ สร้างเล้าใหม่</button>
     <button class="mbtn cnl" onclick="document.getElementById('ovBatch').classList.remove('open')">ยกเลิก</button>
   </div>
 </div>
@@ -657,7 +657,7 @@ function renderBatchHeader() {
         <button class="bpill${b.id===db.activeBatchId?' active':''}" onclick="switchBatch(${b.id})">${b.name}</button>
         <button class="bedit-btn" onclick="openBatchEditModal(${b.id})">✏️</button>
       </div>`).join('')+
-    `<button class="badd" onclick="openBatchModal()">＋ รุ่นใหม่</button>`;
+    `<button class="badd" onclick="openBatchModal()">＋ เล้าใหม่</button>`;
 }
 
 function switchBatch(id){
