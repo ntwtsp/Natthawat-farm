@@ -263,6 +263,7 @@
     <div><h1>🐷 ณัฐวัฒน์ ฟาร์ม</h1><div class="hdr-sub" id="headerDate"></div></div>
     <div style="display:flex;align-items:center;gap:10px">
       <div id="syncDot" class="sync-dot" onclick="openSyncModal()" title="ซิงค์ข้อมูล">☁️</div>
+      <div style="font-size:24px;cursor:pointer" onclick="openReportModal()" title="ส่งรายงานรูปภาพ">📸</div>
       <div style="font-size:26px">💰</div>
     </div>
   </div>
@@ -459,6 +460,26 @@
     <button class="mbtn pri" onclick="saveSyncUrl()">💾 บันทึกและซิงค์</button>
     <button class="mbtn" style="background:#f0fdf4;color:#15803d;margin-bottom:8px" onclick="testSync()">🔌 ทดสอบการเชื่อมต่อ</button>
     <button class="mbtn cnl" onclick="document.getElementById('ovSync').classList.remove('open')">ปิด</button>
+  </div>
+</div>
+
+<!-- MODAL: REPORT -->
+<div class="overlay" id="ovReport" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <h3>📸 ส่งรายงานประจำวัน</h3>
+    <div style="background:#f0fdf4;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:11px;color:#15803d;line-height:1.5">
+      📦 รูปจะถูกส่งไป Google Drive และบันทึกลง Google Sheets อัตโนมัติ
+    </div>
+    <div class="fs"><label>วันที่</label><input type="date" id="rptDate" /></div>
+    <div class="fs">
+      <label>เลือกรูป (กล้องหรือคลังภาพ)</label>
+      <input type="file" id="rptImage" accept="image/*" capture="environment" onchange="onReportImageChange(this)" style="padding:8px;border:1px solid #d1d5db;border-radius:8px;width:100%;font-size:13px;font-family:inherit" />
+      <div id="rptPreview" style="margin-top:10px"></div>
+    </div>
+    <div class="fs"><label>หมายเหตุ (ไม่บังคับ)</label><input type="text" id="rptNote" placeholder="เช่น รายงานเช้า / รายงานเย็น" /></div>
+    <div id="rptStatus" style="margin-bottom:12px;font-size:12px;min-height:18px"></div>
+    <button class="mbtn pri" onclick="submitReport()">📤 ส่งรายงาน</button>
+    <button class="mbtn cnl" onclick="document.getElementById('ovReport').classList.remove('open')">ยกเลิก</button>
   </div>
 </div>
 
@@ -1390,6 +1411,82 @@ function openSyncModal(){
   document.getElementById('syncUrlInput').value=getSyncUrl();
   document.getElementById('syncTestResult').textContent='';
   document.getElementById('ovSync').classList.add('open');
+}
+
+// ─── PHOTO REPORT ──────────────────────────────────────────────────────────
+const REPORT_URL = 'https://script.google.com/macros/s/AKfycbyVi6v7CDOaxava7ROlYepjTpbz-GMmEyz5Bt0hsL8Qb3mfG6VGnVpCS7eaDC2Gg61tdw/exec';
+let _reportImage = null;
+
+function openReportModal(){
+  document.getElementById('rptDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('rptImage').value = '';
+  document.getElementById('rptNote').value = '';
+  document.getElementById('rptPreview').innerHTML = '';
+  document.getElementById('rptStatus').textContent = '';
+  _reportImage = null;
+  document.getElementById('ovReport').classList.add('open');
+}
+
+function onReportImageChange(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  const status = document.getElementById('rptStatus');
+  status.style.color = '#6b7280';
+  status.textContent = '🔄 กำลังย่อรูป...';
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      const maxW = 1600;
+      let w = img.width, h = img.height;
+      if(w > maxW){ h = h * (maxW/w); w = maxW; }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      _reportImage = { base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' };
+      document.getElementById('rptPreview').innerHTML =
+        `<img src="${dataUrl}" style="max-width:100%;max-height:220px;border-radius:10px;display:block" />
+         <div style="font-size:10px;color:#6b7280;margin-top:4px">ขนาด: ${Math.round(dataUrl.length*0.75/1024)} KB</div>`;
+      status.textContent = '';
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function submitReport(){
+  const date = document.getElementById('rptDate').value;
+  const note = document.getElementById('rptNote').value.trim();
+  const status = document.getElementById('rptStatus');
+  if(!date){ status.style.color='#dc2626'; status.textContent='⚠️ เลือกวันที่ด้วย'; return; }
+  if(!_reportImage){ status.style.color='#dc2626'; status.textContent='⚠️ เลือกรูปด้วย'; return; }
+  status.style.color='#6b7280';
+  status.textContent='🔄 กำลังส่ง...';
+  try{
+    const body = JSON.stringify({ date, note, image:_reportImage.base64, mimeType:_reportImage.mimeType });
+    const res = await fetch(REPORT_URL, {
+      method:'POST', redirect:'follow',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body
+    });
+    const text = await res.text();
+    const result = JSON.parse(text);
+    if(result.status === 'ok'){
+      status.style.color='#15803d';
+      status.textContent='✅ ส่งสำเร็จ!';
+      setTimeout(() => {
+        document.getElementById('ovReport').classList.remove('open');
+        showToast('📤 ส่งรายงานสำเร็จแล้ว');
+      }, 700);
+    } else {
+      status.style.color='#dc2626';
+      status.textContent='❌ ส่งไม่สำเร็จ: ' + (result.message || 'unknown');
+    }
+  }catch(e){
+    status.style.color='#dc2626';
+    status.textContent='❌ ส่งไม่สำเร็จ: ' + e.message;
+  }
 }
 
 async function testSync(){
