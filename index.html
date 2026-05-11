@@ -35,6 +35,10 @@
     .bpill{padding:5px 13px;border-radius:20px;border:1.5px solid rgba(255,255,255,.4);background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0;transition:all .2s}
     .bpill.active{background:#fff;color:var(--gd);border-color:#fff}
     .badd{padding:5px 11px;border-radius:20px;border:1.5px dashed rgba(255,255,255,.5);background:transparent;color:rgba(255,255,255,.8);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0}
+    .bpill-wrap{display:flex;align-items:center;gap:2px;flex-shrink:0}
+    .bedit-btn{width:22px;height:22px;border-radius:8px;border:none;background:rgba(255,255,255,.15);color:rgba(255,255,255,.8);font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0}
+    .bedit-btn:active{background:rgba(255,255,255,.3)}
+    .del-batch-btn{width:100%;padding:14px;border-radius:13px;border:none;font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;background:#fee2e2;color:#dc2626;margin-bottom:8px}
 
     /* NAV */
     .nav{position:fixed;bottom:0;left:0;right:0;background:#fff;display:flex;border-top:1px solid #e5e7eb;padding-bottom:var(--sb);z-index:100;box-shadow:0 -4px 20px rgba(0,0,0,.08)}
@@ -387,6 +391,17 @@
   </button>
 </nav>
 
+<!-- MODAL: EDIT BATCH -->
+<div class="overlay" id="ovBatchEdit" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <h3>✏️ แก้ไขรุ่น</h3>
+    <div class="fs"><label>ชื่อรุ่น</label><input type="text" id="mbeNameEdit" placeholder="เช่น รุ่น 2" /></div>
+    <button class="mbtn pri" onclick="saveBatchName()">💾 บันทึกชื่อ</button>
+    <button class="del-batch-btn" id="delBatchBtn" onclick="deleteBatch()">🗑️ ลบรุ่นนี้</button>
+    <button class="mbtn cnl" onclick="document.getElementById('ovBatchEdit').classList.remove('open')">ยกเลิก</button>
+  </div>
+</div>
+
 <!-- MODAL: NEW BATCH -->
 <div class="overlay" id="ovBatch" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal">
@@ -632,7 +647,11 @@ function switchHistTab(tab,btn) {
 function renderBatchHeader() {
   const db=loadDB();
   document.getElementById('batchRow').innerHTML =
-    db.batches.map(b=>`<button class="bpill${b.id===db.activeBatchId?' active':''}" onclick="switchBatch(${b.id})">${b.name}</button>`).join('')+
+    db.batches.map(b=>`
+      <div class="bpill-wrap">
+        <button class="bpill${b.id===db.activeBatchId?' active':''}" onclick="switchBatch(${b.id})">${b.name}</button>
+        <button class="bedit-btn" onclick="openBatchEditModal(${b.id})">✏️</button>
+      </div>`).join('')+
     `<button class="badd" onclick="openBatchModal()">＋ รุ่นใหม่</button>`;
 }
 
@@ -1081,6 +1100,50 @@ function renderChart(entries){
 }
 
 // ─── BATCH MODAL ───────────────────────────────────────────────────────────
+let _editBatchId = null;
+
+function openBatchEditModal(id) {
+  _editBatchId = id;
+  const db = loadDB();
+  const batch = db.batches.find(b => b.id === id);
+  if (!batch) return;
+  document.getElementById('mbeNameEdit').value = batch.name;
+  // ลบไม่ได้ถ้าเหลือรุ่นเดียว
+  const canDelete = db.batches.length > 1;
+  const delBtn = document.getElementById('delBatchBtn');
+  delBtn.style.display = canDelete ? 'block' : 'none';
+  document.getElementById('ovBatchEdit').classList.add('open');
+}
+
+function saveBatchName() {
+  const name = document.getElementById('mbeNameEdit').value.trim();
+  if (!name) { showToast('⚠️ ใส่ชื่อรุ่นด้วย'); return; }
+  const db = loadDB();
+  const batch = db.batches.find(b => b.id === _editBatchId);
+  if (batch) { batch.name = name; saveDB(db); }
+  document.getElementById('ovBatchEdit').classList.remove('open');
+  renderBatchHeader();
+  if (curPage === 'home') renderHome();
+  if (curPage === 'pigs') renderPigs();
+  showToast('✅ เปลี่ยนชื่อแล้ว');
+}
+
+function deleteBatch() {
+  const db = loadDB();
+  if (db.batches.length <= 1) { showToast('⚠️ ต้องมีอย่างน้อย 1 รุ่น'); return; }
+  const batch = db.batches.find(b => b.id === _editBatchId);
+  if (!batch) return;
+  if (!confirm(`ลบ "${batch.name}" และข้อมูลทั้งหมดในรุ่นนี้?\nไม่สามารถกู้คืนได้`)) return;
+  db.batches = db.batches.filter(b => b.id !== _editBatchId);
+  // ถ้าลบ active batch ให้เปลี่ยนไปรุ่นแรก
+  if (db.activeBatchId === _editBatchId) db.activeBatchId = db.batches[0].id;
+  saveDB(db);
+  document.getElementById('ovBatchEdit').classList.remove('open');
+  renderBatchHeader();
+  showPage('home', document.querySelector('.nb'));
+  showToast(`🗑️ ลบ${batch.name}แล้ว`);
+}
+
 function openBatchModal(){
   const db=loadDB();
   document.getElementById('mbName').value=`รุ่น ${db.batches.length+1}`;
