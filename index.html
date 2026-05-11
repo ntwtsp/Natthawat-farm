@@ -240,6 +240,13 @@
     .wt-item .wd{font-size:12px;color:var(--gray)}
     .wt-item .wv{font-size:13px;font-weight:600}
 
+    /* SYNC */
+    .sync-dot{cursor:pointer;font-size:20px;user-select:none;transition:transform .2s}
+    .sync-dot:active{transform:scale(.85)}
+    .sync-url-input{width:100%;padding:13px 15px;border:2px solid #e5e7eb;border-radius:12px;font-size:14px;font-family:inherit;background:#fff;color:#111827;margin-bottom:4px}
+    .sync-url-input:focus{outline:none;border-color:var(--b)}
+    .sync-hint{font-size:11px;color:var(--gray);margin-bottom:16px;line-height:1.5}
+
     /* TOAST */
     .toast{position:fixed;bottom:calc(76px + var(--sb) + 10px);left:50%;transform:translateX(-50%) translateY(20px);background:#111827;color:#fff;padding:10px 20px;border-radius:99px;font-size:13px;font-weight:500;opacity:0;transition:all .3s;z-index:300;pointer-events:none;white-space:nowrap}
     .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -250,7 +257,10 @@
 <div class="hdr">
   <div class="hdr-top">
     <div><h1>🐷 ณัฐวัฒน์ ฟาร์ม</h1><div class="hdr-sub" id="headerDate"></div></div>
-    <div style="font-size:26px">💰</div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div id="syncDot" class="sync-dot" onclick="openSyncModal()" title="ซิงค์ข้อมูล">☁️</div>
+      <div style="font-size:26px">💰</div>
+    </div>
   </div>
   <div class="batch-row" id="batchRow"></div>
 </div>
@@ -414,6 +424,25 @@
   </div>
 </div>
 
+<!-- MODAL: SYNC -->
+<div class="overlay" id="ovSync" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <h3>☁️ ซิงค์ข้อมูล Cloud</h3>
+    <div style="background:#eff6ff;border-radius:12px;padding:12px;margin-bottom:16px;font-size:12px;color:#1d4ed8;line-height:1.6">
+      ข้อมูลจะ sync อัตโนมัติทุกครั้งที่บันทึก<br>เปิดแอปทีไหน ข้อมูลเหมือนกันทุกเครื่อง
+    </div>
+    <div class="fs">
+      <label>Google Apps Script URL</label>
+      <input class="sync-url-input" type="url" id="syncUrlInput" placeholder="https://script.google.com/macros/s/.../exec" />
+      <div class="sync-hint">วาง URL จาก Deploy → New deployment → Web app</div>
+    </div>
+    <div id="syncTestResult" style="margin-bottom:12px;font-size:12px;min-height:18px"></div>
+    <button class="mbtn pri" onclick="saveSyncUrl()">💾 บันทึกและซิงค์</button>
+    <button class="mbtn" style="background:#f0fdf4;color:#15803d;margin-bottom:8px" onclick="testSync()">🔌 ทดสอบการเชื่อมต่อ</button>
+    <button class="mbtn cnl" onclick="document.getElementById('ovSync').classList.remove('open')">ปิด</button>
+  </div>
+</div>
+
 <!-- MODAL: EXPENSE -->
 <div class="overlay" id="ovExp" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal">
@@ -502,7 +531,7 @@ function loadDB() {
   return initial;
 }
 
-function saveDB(db) { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+function saveDB(db) { localStorage.setItem(DB_KEY, JSON.stringify(db)); syncUp(); }
 function getActiveBatch(db) { return db.batches.find(b => b.id === db.activeBatchId); }
 
 // ─── PIG CALC ──────────────────────────────────────────────────────────────
@@ -1179,6 +1208,86 @@ function deleteExpense(id) {
   saveDB(db); renderExpense(); showToast('🗑️ ลบแล้ว');
 }
 
+// ─── CLOUD SYNC ────────────────────────────────────────────────────────────
+const SYNC_KEY = 'pigFarmSyncUrl';
+function getSyncUrl(){ return localStorage.getItem(SYNC_KEY)||''; }
+
+function setSyncDot(s){
+  const d=document.getElementById('syncDot');
+  if(!d)return;
+  d.textContent = s==='syncing'?'🔄':s==='ok'?'☁️':'⚠️';
+}
+
+async function syncUp(){
+  const url=getSyncUrl(); if(!url)return;
+  try{
+    setSyncDot('syncing');
+    const body='data='+encodeURIComponent(localStorage.getItem(DB_KEY)||'{}');
+    await fetch(url,{method:'POST',redirect:'follow',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
+    setSyncDot('ok');
+  }catch(e){ setSyncDot('error'); }
+}
+
+async function syncDown(){
+  const url=getSyncUrl(); if(!url)return false;
+  try{
+    setSyncDot('syncing');
+    const res=await fetch(url+'?t='+Date.now(),{redirect:'follow'});
+    const text=await res.text();
+    const cloud=JSON.parse(text);
+    if(cloud&&cloud.batches){
+      localStorage.setItem(DB_KEY,text);
+      setSyncDot('ok');
+      return true;
+    }
+    setSyncDot('ok'); return false;
+  }catch(e){ setSyncDot('error'); return false; }
+}
+
+function openSyncModal(){
+  document.getElementById('syncUrlInput').value=getSyncUrl();
+  document.getElementById('syncTestResult').textContent='';
+  document.getElementById('ovSync').classList.add('open');
+}
+
+async function testSync(){
+  const url=document.getElementById('syncUrlInput').value.trim();
+  const el=document.getElementById('syncTestResult');
+  if(!url){el.style.color='#dc2626';el.textContent='⚠️ ยังไม่ได้ใส่ URL';return;}
+  el.style.color='#6b7280'; el.textContent='🔄 กำลังทดสอบ...';
+  try{
+    const res=await fetch(url+'?t='+Date.now(),{redirect:'follow'});
+    const text=await res.text();
+    JSON.parse(text);
+    el.style.color='#15803d'; el.textContent='✅ เชื่อมต่อสำเร็จ!';
+  }catch(e){
+    el.style.color='#dc2626'; el.textContent='❌ เชื่อมต่อไม่ได้ — ตรวจสอบ URL อีกครั้ง';
+  }
+}
+
+async function saveSyncUrl(){
+  const url=document.getElementById('syncUrlInput').value.trim();
+  localStorage.setItem(SYNC_KEY,url);
+  document.getElementById('ovSync').classList.remove('open');
+  if(!url){showToast('🗑️ ลบ URL แล้ว');return;}
+  showToast('🔄 กำลังดึงข้อมูลจาก Cloud...');
+  const synced=await syncDown();
+  if(synced){
+    showToast('✅ ซิงค์สำเร็จ! โหลดข้อมูลล่าสุดแล้ว');
+    renderBatchHeader();
+    renderHome();
+  }else{
+    showToast('☁️ เชื่อมต่อแล้ว กำลัง backup ขึ้น Cloud...');
+    syncUp();
+  }
+}
+
+async function initSync(){
+  if(!getSyncUrl())return;
+  const synced=await syncDown();
+  if(synced){ renderBatchHeader(); renderHome(); }
+}
+
 // ─── TOAST ─────────────────────────────────────────────────────────────────
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
 
@@ -1186,6 +1295,7 @@ function showToast(msg){const t=document.getElementById('toast');t.textContent=m
 if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
 renderBatchHeader();
 renderHome();
+initSync();
 </script>
 </body>
 </html>
