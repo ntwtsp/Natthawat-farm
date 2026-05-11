@@ -936,7 +936,10 @@ function updatePreview(){
   const w2=parseFloat(document.getElementById('fW2').value)||0;
   if(!w1&&!w2){document.getElementById('fpreview').style.display='none';return;}
   const rcv=document.getElementById('cbRcv').checked?parseFloat(document.getElementById('fRcv').value)||0:0;
-  const rem=w1+w2, entries=(getActiveBatch(loadDB())||{entries:[]}).entries;
+  const fDate=document.getElementById('fDate').value;
+  const allEntries=(getActiveBatch(loadDB())||{entries:[]}).entries;
+  const entries=allEntries.filter(e=>e.date<fDate);
+  const rem=w1+w2;
   let used=null,avg=null;
   if(entries.length){
     const last=entries[entries.length-1];
