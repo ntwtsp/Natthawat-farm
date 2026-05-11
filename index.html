@@ -322,6 +322,7 @@
         <div class="pi"><div class="pl">เฉลี่ย/วัน</div><div class="pv" id="pAvg">—</div></div>
       </div>
     </div>
+    <div id="sameDayWarn" style="display:none;background:#fef3c7;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#92400e">⚠️ มีข้อมูลวันนี้แล้ว — กดบันทึกเพื่อ <b>แทนที่</b></div>
     <button class="btn-sub" onclick="saveEntry()">💾 บันทึกอาหาร</button>
   </div>
 </div>
@@ -875,15 +876,30 @@ function deletePigEvent(id) {
 
 // ─── FORM ──────────────────────────────────────────────────────────────────
 function resetForm(){
-  document.getElementById('fDate').value=new Date().toISOString().split('T')[0];
+  const today=new Date().toISOString().split('T')[0];
+  document.getElementById('fDate').value=today;
   ['fW1','fW2','fRcv'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('cbRcv').checked=false;
   document.getElementById('rcvField').style.display='none';
   document.getElementById('fpreview').style.display='none';
+  checkSameDay(today);
+}
+function checkSameDay(date){
+  const batch=getActiveBatch(loadDB());
+  const exists=batch&&batch.entries.some(e=>e.date===date);
+  document.getElementById('sameDayWarn').style.display=exists?'block':'none';
+  if(exists){
+    const e=batch.entries.find(e=>e.date===date);
+    document.getElementById('fW1').value=e.w1||'';
+    document.getElementById('fW2').value=e.w2||'';
+    if(e.received){document.getElementById('cbRcv').checked=true;document.getElementById('rcvField').style.display='block';document.getElementById('fRcv').value=e.received;}
+    updatePreview();
+  }
 }
 document.getElementById('cbRcv').addEventListener('change',function(){
   document.getElementById('rcvField').style.display=this.checked?'block':'none'; updatePreview();
 });
+document.getElementById('fDate').addEventListener('change',function(){ checkSameDay(this.value); updatePreview(); });
 ['fW1','fW2','fRcv'].forEach(id=>document.getElementById(id).addEventListener('input',updatePreview));
 
 function updatePreview(){
@@ -913,15 +929,22 @@ function updatePreview(){
 
 function saveEntry(){
   const date=document.getElementById('fDate').value;
-  const w1=parseFloat(document.getElementById('fW1').value);
-  const w2=parseFloat(document.getElementById('fW2').value);
+  const w1=parseFloat(document.getElementById('fW1').value)||0;
+  const w2=parseFloat(document.getElementById('fW2').value)||0;
   if(!date){showToast('⚠️ เลือกวันที่ด้วย');return;}
-  if(isNaN(w1)||isNaN(w2)){showToast('⚠️ กรอกน้ำหนักทั้ง 2 ถัง');return;}
   const rcv=document.getElementById('cbRcv').checked?parseFloat(document.getElementById('fRcv').value)||0:0;
   const db=loadDB(), batch=getActiveBatch(db);
-  batch.entries.push({id:Date.now(),date,w1,w2,received:rcv});
-  batch.entries.sort((a,b)=>new Date(a.date)-new Date(b.date));
-  saveDB(db); showToast('✅ บันทึกแล้ว');
+  const existIdx=batch.entries.findIndex(e=>e.date===date);
+  if(existIdx>=0){
+    const oldId=batch.entries[existIdx].id;
+    batch.entries[existIdx]={id:oldId,date,w1,w2,received:rcv};
+    showToast('✅ อัปเดตข้อมูลวันนี้แล้ว');
+  } else {
+    batch.entries.push({id:Date.now(),date,w1,w2,received:rcv});
+    batch.entries.sort((a,b)=>new Date(a.date)-new Date(b.date));
+    showToast('✅ บันทึกแล้ว');
+  }
+  saveDB(db);
   setTimeout(()=>showPage('home',document.querySelector('.nb')),600);
 }
 
