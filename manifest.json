@@ -1,6 +1,6 @@
 {
-  "name": "บันทึกอาหารหมู",
-  "short_name": "อาหารหมู",
+  "name": "ณัฐวัฒน์ ฟาร์ม",
+  "short_name": "ณัฐวัฒน์ ฟาร์ม",
   "description": "บันทึกน้ำหนักและการใช้อาหารหมูประจำวัน",
   "start_url": "/Natthawat-farm/",
   "display": "standalone",

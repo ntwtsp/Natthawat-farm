@@ -1340,10 +1340,15 @@ function getSyncUrl(){ return localStorage.getItem(SYNC_KEY)||''; }
 function setSyncDot(s){
   const d=document.getElementById('syncDot');
   if(!d)return;
-  d.textContent = s==='syncing'?'🔄':s==='ok'?'☁️':'⚠️';
+  d.textContent = s==='syncing'?'🔄':s==='ok'?'☁️':s==='error'?'⚠️':'☁️';
 }
 
+let _syncTimer=null;
 async function syncUp(){
+  if(_syncTimer) clearTimeout(_syncTimer);
+  _syncTimer=setTimeout(_doSyncUp,800);
+}
+async function _doSyncUp(){
   const url=getSyncUrl(); if(!url)return;
   try{
     setSyncDot('syncing');
@@ -1361,6 +1366,18 @@ async function syncDown(){
     const text=await res.text();
     const cloud=JSON.parse(text);
     if(cloud&&cloud.batches){
+      const local=localStorage.getItem(DB_KEY);
+      if(local && local!==text){
+        try{
+          const lb=JSON.parse(local);
+          const localCount=(lb.batches||[]).reduce((a,b)=>a+(b.entries||[]).length,0);
+          const cloudCount=cloud.batches.reduce((a,b)=>a+(b.entries||[]).length,0);
+          if(localCount>cloudCount){
+            console.warn('syncDown: cloud has fewer entries — keeping local');
+            setSyncDot('ok'); return false;
+          }
+        }catch(_){}
+      }
       localStorage.setItem(DB_KEY,text);
       setSyncDot('ok');
       return true;

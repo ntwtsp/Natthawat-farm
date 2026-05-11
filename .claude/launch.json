@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "pig-feed-app",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "3456", "D:\\บันทึกการใช้อาหาร\\pig-feed-app"],
+      "port": 3456
+    }
+  ]
+}
