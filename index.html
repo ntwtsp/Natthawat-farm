@@ -767,13 +767,17 @@ function renderWeightFcr() {
   const db=loadDB(), batch=getActiveBatch(db);
   const wr=(batch?.weightRecords||[]).filter(w=>w.avgWeight!=null);
   const bs=batchStats(batch||{entries:[]});
-  const {count:pigCount}=calcPigCount((batch?.pigEvents||[]));
+  const pigEvents = batch?.pigEvents||[];
+  const {count:pigCount}=calcPigCount(pigEvents);
+  const intakeCount = pigEvents.filter(e=>e.type==='รับเข้า').reduce((s,e)=>s+(e.count||0),0);
 
   const intakeAvg = batch?.intakeAvgWeight ?? null;
   const latestWr = wr[wr.length-1];
   const currentAvg = latestWr ? latestWr.avgWeight : null;
   const gainPerPig = (intakeAvg!=null && currentAvg!=null) ? currentAvg - intakeAvg : null;
-  const totalGain = (gainPerPig!=null && pigCount>0) ? gainPerPig * pigCount : null;
+  const intakeTotalKg = (intakeAvg!=null && intakeCount>0) ? intakeAvg * intakeCount : null;
+  const currentTotalKg = (currentAvg!=null && pigCount>0) ? currentAvg * pigCount : null;
+  const totalGain = (currentTotalKg!=null && intakeTotalKg!=null) ? currentTotalKg - intakeTotalKg : null;
 
   let fcrVal=null, fcrCls='none', fcrLabel='ยังไม่มีข้อมูล';
   if(totalGain!=null && totalGain>0) {
@@ -829,9 +833,11 @@ function renderWeightFcr() {
       <div class="fcr-detail">
         <div class="fcr-di"><div class="fdl">อาหารที่ใช้ไปทั้งหมด</div><div class="fdv">${fmt(bs.totalUsed)} กก.</div></div>
         <div class="fcr-di"><div class="fdl">น้ำหนักที่เพิ่มรวม</div><div class="fdv">${totalGain!=null?fmt(Math.round(totalGain))+' กก.':'ยังไม่มีข้อมูล'}</div></div>
+        <div class="fcr-di"><div class="fdl">น้ำหนักรับเข้ารวม</div><div class="fdv">${intakeTotalKg!=null?fmt(Math.round(intakeTotalKg))+' กก. ('+intakeCount+' ตัว)':'—'}</div></div>
+        <div class="fcr-di"><div class="fdl">น้ำหนักปัจจุบันรวม</div><div class="fdv">${currentTotalKg!=null?fmt(Math.round(currentTotalKg))+' กก. ('+pigCount+' ตัว)':'—'}</div></div>
       </div>
       <div style="margin-top:8px;padding:8px;background:#f9fafb;border-radius:8px;font-size:10px;color:var(--gray);line-height:1.6">
-        สูตร: อาหารรวม ÷ (น้ำหนักปัจจุบัน − น้ำหนักรับเข้า) × จำนวนหมู<br>
+        สูตร: อาหารรวม ÷ ((avgปัจจุบัน × จำนวนปัจจุบัน) − (avgรับเข้า × จำนวนรับเข้า))<br>
         เกณฑ์: <span style="color:#15803d;font-weight:600">&lt;2.5 ดีมาก</span> · <span style="color:#d97706;font-weight:600">2.5–3.0 ปกติ</span> · <span style="color:#dc2626;font-weight:600">&gt;3.0 ควรปรับ</span>
       </div>
     </div>
