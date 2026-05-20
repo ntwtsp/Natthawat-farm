@@ -572,6 +572,14 @@ function calcPigCount(pigEvents) {
   return { count, totals };
 }
 
+// อาหารที่กินต่อตัวต่อวัน = ใช้ไปวันนั้น ÷ จำนวนหมู ณ วันนั้น
+function feedPerPig(calc, date, pigEvents) {
+  if (calc.used == null) return null;
+  const cnt = calcPigCount((pigEvents||[]).filter(e => e.date <= date)).count;
+  if (cnt <= 0) return null;
+  return calc.used / cnt;
+}
+
 // ─── FEED CALC ─────────────────────────────────────────────────────────────
 function calcEntry(entry, entries) {
   const idx = entries.findIndex(e => e.id === entry.id);
@@ -706,10 +714,11 @@ function renderHome() {
     <div class="bi"><div class="bl">ถัง 2 ใช้ไป</div><div class="bv">${fmt(bs.totalUsedT2)} กก.</div></div>
   </div></div>`;
 
+  const pigEvents=batch.pigEvents||[];
   document.getElementById('recentList').innerHTML=[...entries].slice(-5).reverse().map(e=>{
     const d=new Date(e.date), c2=calcEntry(e,entries);
-    let cls='bg',dStr='—';
-    if(c2.days!=null){dStr=c2.days.toFixed(1)+' วัน';if(c2.days<1.5)cls='br';else if(c2.days<3)cls='by';}
+    const fpp=feedPerPig(c2,e.date,pigEvents);
+    const fppStr=fpp!=null?fpp.toFixed(2)+' กก./ตัว':'—';
     const t1str=c2.usedT1!=null&&c2.usedT1>0?fmt(c2.usedT1):'—';
     const t2str=c2.usedT2!=null&&c2.usedT2>0?fmt(c2.usedT2):'—';
     return`<div class="erow"><div class="edtb"><div class="day">${d.getDate()}</div><div class="mon">${MONTHS[d.getMonth()]}</div></div>
@@ -719,7 +728,7 @@ function renderHome() {
           <span>ถัง1 ใช้ <b>${t1str}</b></span><span>ถัง2 ใช้ <b>${t2str}</b></span>
         </div>
       </div>
-      <span class="ebadge ${cls}">${dStr}</span></div>`;
+      <span class="ebadge bg">${fppStr}</span></div>`;
   }).join('');
   renderChart(entries);
 }
@@ -1028,11 +1037,13 @@ function renderHistory(filter){
   if(filter==='rcv')entries=entries.filter(e=>e.received>0);
   const all=batch?batch.entries:[];
   if(!entries.length){document.getElementById('historyList').innerHTML='<div class="empty"><div class="ei">📋</div><p>ไม่มีข้อมูล</p></div>';return;}
+  const pigEvents=batch?batch.pigEvents||[]:[];
   document.getElementById('historyList').innerHTML=[...entries].reverse().map(e=>{
     const c=calcEntry(e,all);
-    let ec='',dc='gc';
-    if(c.days!=null){if(c.days<1.5){ec='dg';dc='rc2';}else if(c.days<3){ec='wn';dc='yc';}}
+    let ec='';
+    if(c.days!=null){if(c.days<1.5){ec='dg';}else if(c.days<3){ec='wn';}}
     if(e.received>0)ec='rc';
+    const fpp=feedPerPig(c,e.date,pigEvents);
     return`<div class="hentry ${ec}" id="he-${e.id}">
       <button class="delbtn" onclick="delFeed(${e.id})">✕</button>
       <div class="he-hd"><div class="he-dt">📅 ${fmtDate(e.date)}</div>${e.received?`<div class="he-rc">🚛 +${fmt(e.received)} กก.</div>`:''}</div>
@@ -1043,7 +1054,7 @@ function renderHistory(filter){
         <div class="he-i"><div class="hl">ใช้ไปรวม</div><div class="hv">${c.used!=null?fmt(c.used):'—'}</div></div>
         <div class="he-i"><div class="hl">ถัง1 ใช้ไป</div><div class="hv">${c.usedT1!=null&&c.usedT1>0?fmt(c.usedT1):'—'}</div></div>
         <div class="he-i"><div class="hl">ถัง2 ใช้ไป</div><div class="hv">${c.usedT2!=null&&c.usedT2>0?fmt(c.usedT2):'—'}</div></div>
-        <div class="he-i" style="grid-column:span 2"><div class="hl">ใช้ได้อีก</div><div class="hv ${dc}">${c.days!=null?c.days.toFixed(2)+' วัน':'—'}</div></div>
+        <div class="he-i" style="grid-column:span 2"><div class="hl">อาหาร/ตัว/วัน</div><div class="hv gc">${fpp!=null?fpp.toFixed(2)+' กก./ตัว':'—'}</div></div>
       </div></div>`;
   }).join('');
 }
