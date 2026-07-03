@@ -287,6 +287,8 @@
     <div style="font-size:10px;color:var(--gray);margin-top:4px;text-align:right" id="sbarLbl"></div>
   </div>
 
+  <div id="feedGuide"></div>
+
   <div id="batchSummary"></div>
 
   <div class="stitle">บันทึกอาหารล่าสุด</div>
@@ -326,7 +328,14 @@
     <div style="font-size:16px;font-weight:700;margin-bottom:16px">➕ บันทึกอาหารประจำวัน</div>
     <div class="fs"><label>วันที่</label><input type="date" id="fDate" /></div>
     <label class="rtoggle" for="cbRcv"><input type="checkbox" id="cbRcv" /><span class="tl">🚛 มีอาหารรับเข้าวันนี้</span></label>
-    <div id="rcvField" style="display:none" class="fs"><label>รับเข้า (กก.)</label><input type="number" id="fRcv" placeholder="0" min="0" inputmode="numeric" /></div>
+    <div id="rcvField" style="display:none">
+      <div class="fs"><label>รับเข้า (กก.)</label><input type="number" id="fRcv" placeholder="0" min="0" inputmode="numeric" /></div>
+      <div class="fs"><label>เบอร์อาหาร</label>
+        <input type="text" id="fFeedNo" list="feedNoList" placeholder="เช่น 591 LF" autocomplete="off" />
+        <datalist id="feedNoList"><option value="Postwean"></option><option value="LAC"></option><option value="KPF"></option><option value="550 F"></option><option value="551 F"></option><option value="591 LF"></option><option value="552 SF"></option><option value="553 LF"></option></datalist>
+        <div id="fFeedHint" style="font-size:10px;color:#059669;margin-top:4px"></div>
+      </div>
+    </div>
     <div class="ig">
       <div class="fs"><label>ถัง 1 (กก.)</label><input type="number" id="fW1" placeholder="0" min="0" inputmode="numeric" /></div>
       <div class="fs"><label>ถัง 2 (กก.)</label><input type="number" id="fW2" placeholder="0" min="0" inputmode="numeric" /></div>
@@ -437,6 +446,7 @@
     <div class="pig-modal-sub" id="pmSub"></div>
     <div class="fs"><label>วันที่</label><input type="date" id="pmDate" /></div>
     <div class="fs" id="pmCountWrap"><label>จำนวน (ตัว)</label><input type="number" id="pmCount" placeholder="0" min="0" inputmode="numeric" /></div>
+    <div class="fs" id="pmWeightWrap" style="display:none"><label>น้ำหนักเฉลี่ยตอนจับออก (กก./ตัว)</label><input type="number" id="pmAvgW" placeholder="0.0" min="0" step="0.1" inputmode="decimal" /><div style="font-size:10px;color:#6b7280;margin-top:4px">📐 ใส่เพื่อให้ FCR แม่นยำ — น้ำหนักหมูที่จับออกจะถูกล็อกเป็นผลผลิต</div></div>
     <div class="fs"><label>หมายเหตุ (ไม่บังคับ)</label><textarea id="pmNote" placeholder="รายละเอียดเพิ่มเติม..."></textarea></div>
     <button class="mbtn pri" onclick="savePigEvent()">💾 บันทึก</button>
     <button class="mbtn cnl" onclick="document.getElementById('ovPig').classList.remove('open')">ยกเลิก</button>
@@ -523,6 +533,31 @@ const SEED_FEED = [
   {date:"2026-05-08",w1:2870,w2:2708,received:0},{date:"2026-05-09",w1:1461,w2:1295,received:0},
   {date:"2026-05-10",w1:26,w2:1,received:0},
 ];
+
+// ─── มาตรฐานการกินอาหาร CP (สุกรขุน 3x คละเพศ · มาตรฐานหย่านม 6.5 กก.) ──────
+// สัปดาห์ที่ 1 = 7 วันแรกหลังลงลูกสุกร | kg = กก./ตัว/วัน | cum = สะสม กก./ตัว
+const FEED_STANDARD = [
+  {w:1, feed:'LAC',   kg:0.22, cum:1.51},   {w:2, feed:'LAC',   kg:0.38, cum:4.17},
+  {w:3, feed:'KPF',   kg:0.57, cum:8.19},   {w:4, feed:'KPF',   kg:0.79, cum:13.70},
+  {w:5, feed:'550 F', kg:0.99, cum:20.65},  {w:6, feed:'550 F', kg:1.18, cum:28.94},
+  {w:7, feed:'551 F', kg:1.37, cum:38.51},  {w:8, feed:'551 F', kg:1.54, cum:49.27},
+  {w:9, feed:'591 LF',kg:1.70, cum:61.15},  {w:10,feed:'591 LF',kg:1.85, cum:74.07},
+  {w:11,feed:'591 LF',kg:1.98, cum:87.96},  {w:12,feed:'591 LF',kg:2.11, cum:102.73},
+  {w:13,feed:'552 SF',kg:2.23, cum:118.32}, {w:14,feed:'552 SF',kg:2.33, cum:134.64},
+  {w:15,feed:'552 SF',kg:2.43, cum:151.61}, {w:16,feed:'552 SF',kg:2.51, cum:169.16},
+  {w:17,feed:'552 SF',kg:2.58, cum:187.22}, {w:18,feed:'553 LF',kg:2.64, cum:205.70},
+  {w:19,feed:'553 LF',kg:2.70, cum:224.60}, {w:20,feed:'553 LF',kg:2.80, cum:244.20},
+  {w:21,feed:'553 LF',kg:2.80, cum:263.80}, {w:22,feed:'553 LF',kg:2.80, cum:283.40},
+  {w:23,feed:'553 LF',kg:2.80, cum:303.00}, {w:24,feed:'553 LF',kg:2.80, cum:322.60},
+];
+
+// สัปดาห์ปัจจุบันจากวันลงลูกสุกร (สัปดาห์ที่ 1 = 7 วันแรก)
+function currentFeedWeek(startDate) {
+  if (!startDate) return null;
+  const ms = Date.now() - new Date(startDate + 'T00:00:00').getTime();
+  if (ms < 0) return null;
+  return Math.floor(ms / (7 * 86400000)) + 1;
+}
 
 // ─── DB ────────────────────────────────────────────────────────────────────
 const DB_KEY = 'pigFeedData_v3';
@@ -677,6 +712,62 @@ function switchBatch(id){
   if(curPage==='history'){renderHistory(curFilter);renderPigHistory();}
 }
 
+// ─── FEED GUIDE (เกณฑ์อาหาร CP รายสัปดาห์) ─────────────────────────────────
+function renderFeedGuide(batch) {
+  const el=document.getElementById('feedGuide');
+  if(!el) return;
+  const week=currentFeedWeek(batch&&batch.startDate);
+  if(!week){el.innerHTML='';return;}
+
+  const maxW=FEED_STANDARD.length;
+  const over=week>maxW;
+  const std=FEED_STANDARD[Math.min(week,maxW)-1];
+  const pigCount=calcPigCount(batch.pigEvents||[]).count;
+  const herd=pigCount>0 ? std.kg*pigCount : null;
+
+  // อาหาร/ตัว/วัน ที่กินจริงล่าสุด
+  const entries=batch.entries||[];
+  let actual=null;
+  if(entries.length){
+    const last=entries[entries.length-1];
+    actual=feedPerPig(calcEntry(last,entries),last.date,batch.pigEvents||[]);
+  }
+
+  let cmp='';
+  if(actual!=null){
+    const pct=(actual-std.kg)/std.kg*100;
+    let color,icon,txt;
+    if(Math.abs(pct)<=10){color='#16a34a';icon='✅';txt='ตามเกณฑ์';}
+    else if(pct<0){color='#d97706';icon='⬇️';txt=`น้อยกว่าเกณฑ์ ${Math.abs(pct).toFixed(0)}%`;}
+    else{color='#dc2626';icon='⬆️';txt=`มากกว่าเกณฑ์ ${pct.toFixed(0)}%`;}
+    cmp=`<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.25);font-size:12.5px;color:#f0fdf4">
+      กินจริงล่าสุด <b style="color:#fff">${actual.toFixed(2)}</b> กก./ตัว/วัน ·
+      <span style="font-weight:700;color:${color==='#16a34a'?'#bbf7d0':'#fff'}">${icon} ${txt}</span></div>`;
+  }
+
+  const note=over
+    ? `<div style="margin-top:8px;font-size:11.5px;color:#fef9c3">⚠️ เกิน ${maxW} สัปดาห์แล้ว — ปกติควรจับขายหมดแล้ว (แสดงเกณฑ์สัปดาห์ ${maxW})</div>`
+    : `<div style="margin-top:8px;font-size:11.5px;color:#d1fae5">📈 สะสมถึงสัปดาห์นี้ควรกิน ~${std.cum.toFixed(0)} กก./ตัว</div>`;
+
+  el.innerHTML=`<div class="card" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;box-shadow:0 4px 14px rgba(5,150,105,.3)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <span style="font-size:13px;font-weight:700">🎯 เกณฑ์อาหาร CP สัปดาห์นี้</span>
+      <span style="background:rgba(255,255,255,.22);font-size:11px;font-weight:700;padding:3px 10px;border-radius:8px">สัปดาห์ที่ ${week}${over?`+`:''}</span>
+    </div>
+    <div style="display:flex;align-items:baseline;gap:8px">
+      <div style="font-size:30px;font-weight:800;line-height:1">${std.kg.toFixed(2)}</div>
+      <div style="font-size:13px;opacity:.95">กก./ตัว/วัน</div>
+      <div style="margin-left:auto;text-align:right">
+        <div style="font-size:10px;opacity:.85">เบอร์อาหาร</div>
+        <div style="font-size:16px;font-weight:800">${std.feed}</div>
+      </div>
+    </div>
+    ${herd!=null?`<div style="margin-top:8px;font-size:12.5px;color:#ecfdf5">🐷 ทั้งเล้า (${fmt(pigCount)} ตัว) ควรใช้ ~<b style="color:#fff">${fmt(Math.round(herd))}</b> กก./วัน</div>`:''}
+    ${note}
+    ${cmp}
+  </div>`;
+}
+
 // ─── HOME ──────────────────────────────────────────────────────────────────
 function renderHome() {
   const db=loadDB(), batch=getActiveBatch(db);
@@ -686,6 +777,7 @@ function renderHome() {
 
   const pigData = batch ? calcPigCount(batch.pigEvents||[]) : {count:0};
   document.getElementById('sPigs').textContent = batch&&(batch.pigEvents||[]).length ? fmt(pigData.count) : '—';
+  if(batch) renderFeedGuide(batch);
 
   if(!entries.length){
     ['sRemain','sDays','sAvg'].forEach(id=>document.getElementById(id).textContent='—');
@@ -723,7 +815,7 @@ function renderHome() {
     const t2str=c2.usedT2!=null&&c2.usedT2>0?fmt(c2.usedT2):'—';
     return`<div class="erow"><div class="edtb"><div class="day">${d.getDate()}</div><div class="mon">${MONTHS[d.getMonth()]}</div></div>
       <div class="einf">
-        <div class="w">คงเหลือ ${fmt(c2.remaining)} กก.${e.received?` · 🚛 ${fmt(e.received)} กก.`:''}</div>
+        <div class="w">คงเหลือ ${fmt(c2.remaining)} กก.${e.received?` · 🚛 ${fmt(e.received)} กก.`:''}${e.feedNo?` · 🌾 ${e.feedNo}`:''}</div>
         <div class="s" style="display:flex;gap:10px;margin-top:2px">
           <span>ถัง1 ใช้ <b>${t1str}</b></span><span>ถัง2 ใช้ <b>${t2str}</b></span>
         </div>
@@ -785,8 +877,21 @@ function renderWeightFcr() {
   const currentAvg = latestWr ? latestWr.avgWeight : null;
   const gainPerPig = (intakeAvg!=null && currentAvg!=null) ? currentAvg - intakeAvg : null;
   const intakeTotalKg = (intakeAvg!=null && intakeCount>0) ? intakeAvg * intakeCount : null;
-  const currentTotalKg = (currentAvg!=null && pigCount>0) ? currentAvg * pigCount : null;
-  const totalGain = (currentTotalKg!=null && intakeTotalKg!=null) ? currentTotalKg - intakeTotalKg : null;
+
+  // หมูขาย/คัดทิ้ง = ล็อกน้ำหนักตอนจับออกเป็นผลผลิต (ไม่ถือว่าสูญเหมือนหมูตาย)
+  let soldCulledKg=0, soldCulledCnt=0, soldCulledMissing=0;
+  pigEvents.forEach(e=>{
+    if(e.type==='ขาย'||e.type==='คัดทิ้ง'){
+      const n=e.count||0;
+      if(e.avgW>0){ soldCulledKg+=e.avgW*n; soldCulledCnt+=n; }
+      else soldCulledMissing+=n;
+    }
+  });
+  // น้ำหนักหมูที่ยังอยู่ในเล้าตอนนี้
+  const currentTotalKg = (currentAvg!=null && pigCount>0) ? currentAvg * pigCount : (pigCount<=0 ? 0 : null);
+  // ผลผลิตรวม = หมูในเล้า(น้ำหนักปัจจุบัน) + หมูที่จับออกแล้ว(ล็อกน้ำหนักตอนจับ)
+  const outputKg = (currentTotalKg!=null) ? currentTotalKg + soldCulledKg : null;
+  const totalGain = (outputKg!=null && intakeTotalKg!=null) ? outputKg - intakeTotalKg : null;
 
   let fcrVal=null, fcrCls='none', fcrLabel='ยังไม่มีข้อมูล';
   if(totalGain!=null && totalGain>0) {
@@ -843,10 +948,15 @@ function renderWeightFcr() {
         <div class="fcr-di"><div class="fdl">อาหารที่ใช้ไปทั้งหมด</div><div class="fdv">${fmt(bs.totalUsed)} กก.</div></div>
         <div class="fcr-di"><div class="fdl">น้ำหนักที่เพิ่มรวม</div><div class="fdv">${totalGain!=null?fmt(Math.round(totalGain))+' กก.':'ยังไม่มีข้อมูล'}</div></div>
         <div class="fcr-di"><div class="fdl">น้ำหนักรับเข้ารวม</div><div class="fdv">${intakeTotalKg!=null?fmt(Math.round(intakeTotalKg))+' กก. ('+intakeCount+' ตัว)':'—'}</div></div>
-        <div class="fcr-di"><div class="fdl">น้ำหนักปัจจุบันรวม</div><div class="fdv">${currentTotalKg!=null?fmt(Math.round(currentTotalKg))+' กก. ('+pigCount+' ตัว)':'—'}</div></div>
+        <div class="fcr-di"><div class="fdl">น้ำหนักในเล้าตอนนี้</div><div class="fdv">${currentAvg!=null&&pigCount>0?fmt(Math.round(currentTotalKg))+' กก. ('+pigCount+' ตัว)':(pigCount<=0?'0 กก. (0 ตัว)':'—')}</div></div>
+        <div class="fcr-di" style="grid-column:span 2"><div class="fdl">น้ำหนักจับออกแล้ว (ขาย/คัดทิ้ง)</div><div class="fdv">${soldCulledCnt>0?fmt(Math.round(soldCulledKg))+' กก. ('+soldCulledCnt+' ตัว) 🔒':'— (ยังไม่จด)'}</div></div>
       </div>
+      ${soldCulledMissing>0?`<div style="margin-top:8px;padding:8px;background:#fef3c7;border-radius:8px;font-size:10.5px;color:#92400e;line-height:1.5">
+        ⚠️ มีหมูขาย/คัดทิ้ง <b>${soldCulledMissing} ตัว</b> ที่ยังไม่ได้จดน้ำหนักตอนจับออก — FCR อาจต่ำกว่าความจริง แนะนำให้จดน้ำหนักย้อนหลัง (ลบแล้วเพิ่มใหม่พร้อมน้ำหนัก)
+      </div>`:''}
       <div style="margin-top:8px;padding:8px;background:#f9fafb;border-radius:8px;font-size:10px;color:var(--gray);line-height:1.6">
-        สูตร: อาหารรวม ÷ ((avgปัจจุบัน × จำนวนปัจจุบัน) − (avgรับเข้า × จำนวนรับเข้า))<br>
+        สูตร: อาหารรวม ÷ (ผลผลิตรวม − น้ำหนักรับเข้ารวม)<br>
+        ผลผลิตรวม = น้ำหนักหมูในเล้า + <b>น้ำหนักหมูขาย/คัดทิ้งที่จับออก</b> (หมูตายไม่นับเป็นผลผลิต)<br>
         เกณฑ์: <span style="color:#15803d;font-weight:600">&lt;2.5 ดีมาก</span> · <span style="color:#d97706;font-weight:600">2.5–3.0 ปกติ</span> · <span style="color:#dc2626;font-weight:600">&gt;3.0 ควรปรับ</span>
       </div>
     </div>
@@ -915,7 +1025,9 @@ function openPigModal(type) {
   document.getElementById('pmDate').value=new Date().toISOString().split('T')[0];
   document.getElementById('pmCount').value='';
   document.getElementById('pmNote').value='';
+  document.getElementById('pmAvgW').value='';
   document.getElementById('pmCountWrap').style.display=type==='หมายเหตุ'?'none':'block';
+  document.getElementById('pmWeightWrap').style.display=(type==='ขาย'||type==='คัดทิ้ง')?'block':'none';
   document.getElementById('ovPig').classList.add('open');
 }
 
@@ -927,7 +1039,12 @@ function savePigEvent() {
   if(currentPigType!=='หมายเหตุ'&&count<=0){showToast('⚠️ ใส่จำนวนด้วย');return;}
   const db=loadDB(), batch=getActiveBatch(db);
   if(!batch.pigEvents) batch.pigEvents=[];
-  batch.pigEvents.push({id:Date.now(),type:currentPigType,date,count,note});
+  const evt={id:Date.now(),type:currentPigType,date,count,note};
+  if(currentPigType==='ขาย'||currentPigType==='คัดทิ้ง'){
+    const avgW=parseFloat(document.getElementById('pmAvgW').value);
+    if(!isNaN(avgW)&&avgW>0) evt.avgW=avgW;
+  }
+  batch.pigEvents.push(evt);
   batch.pigEvents.sort((a,b)=>new Date(a.date)-new Date(b.date));
   saveDB(db);
   document.getElementById('ovPig').classList.remove('open');
@@ -951,6 +1068,12 @@ function resetForm(){
   document.getElementById('cbRcv').checked=false;
   document.getElementById('rcvField').style.display='none';
   document.getElementById('fpreview').style.display='none';
+  // เติมเบอร์อาหารที่แนะนำของสัปดาห์นี้ + hint
+  const batch=getActiveBatch(loadDB());
+  const wk=currentFeedWeek(batch&&batch.startDate);
+  const rec=wk?FEED_STANDARD[Math.min(wk,FEED_STANDARD.length)-1].feed:null;
+  document.getElementById('fFeedNo').value=rec||'';
+  document.getElementById('fFeedHint').textContent=rec?`💡 เกณฑ์ CP สัปดาห์ที่ ${wk}: ${rec}`:'';
   checkSameDay(today);
 }
 function checkSameDay(date){
@@ -961,6 +1084,7 @@ function checkSameDay(date){
     const e=batch.entries.find(e=>e.date===date);
     document.getElementById('fW1').value=e.w1||'';
     document.getElementById('fW2').value=e.w2||'';
+    if(e.feedNo) document.getElementById('fFeedNo').value=e.feedNo;
     if(e.received){document.getElementById('cbRcv').checked=true;document.getElementById('rcvField').style.display='block';document.getElementById('fRcv').value=e.received;}
     updatePreview();
   }
@@ -1004,15 +1128,17 @@ function saveEntry(){
   const w1=parseFloat(document.getElementById('fW1').value)||0;
   const w2=parseFloat(document.getElementById('fW2').value)||0;
   if(!date){showToast('⚠️ เลือกวันที่ด้วย');return;}
-  const rcv=document.getElementById('cbRcv').checked?parseFloat(document.getElementById('fRcv').value)||0:0;
+  const hasRcv=document.getElementById('cbRcv').checked;
+  const rcv=hasRcv?parseFloat(document.getElementById('fRcv').value)||0:0;
+  const feedNo=hasRcv?document.getElementById('fFeedNo').value.trim():'';
   const db=loadDB(), batch=getActiveBatch(db);
   const existIdx=batch.entries.findIndex(e=>e.date===date);
   if(existIdx>=0){
     const oldId=batch.entries[existIdx].id;
-    batch.entries[existIdx]={id:oldId,date,w1,w2,received:rcv};
+    batch.entries[existIdx]={id:oldId,date,w1,w2,received:rcv,feedNo};
     showToast('✅ อัปเดตข้อมูลวันนี้แล้ว');
   } else {
-    batch.entries.push({id:Date.now(),date,w1,w2,received:rcv});
+    batch.entries.push({id:Date.now(),date,w1,w2,received:rcv,feedNo});
     batch.entries.sort((a,b)=>new Date(a.date)-new Date(b.date));
     showToast('✅ บันทึกแล้ว');
   }
@@ -1046,7 +1172,7 @@ function renderHistory(filter){
     const fpp=feedPerPig(c,e.date,pigEvents);
     return`<div class="hentry ${ec}" id="he-${e.id}">
       <button class="delbtn" onclick="delFeed(${e.id})">✕</button>
-      <div class="he-hd"><div class="he-dt">📅 ${fmtDate(e.date)}</div>${e.received?`<div class="he-rc">🚛 +${fmt(e.received)} กก.</div>`:''}</div>
+      <div class="he-hd"><div class="he-dt">📅 ${fmtDate(e.date)}${e.feedNo?` · <span style="color:#059669;font-weight:700">🌾 ${e.feedNo}</span>`:''}</div>${e.received?`<div class="he-rc">🚛 +${fmt(e.received)} กก.</div>`:''}</div>
       <div class="he-g">
         <div class="he-i"><div class="hl">ถัง 1</div><div class="hv">${fmt(e.w1)}</div></div>
         <div class="he-i"><div class="hl">ถัง 2</div><div class="hv">${fmt(e.w2)}</div></div>
@@ -1081,7 +1207,8 @@ function renderPigHistory(){
         ${!isMeta?`<div class="he-rc" style="background:${isPos?'#dbeafe':'#fee2e2'};color:${isPos?'#1d4ed8':'#991b1b'}">${cfg.sign}${fmt(e.count)} ตัว</div>`:''}
       </div>
       <div class="he-g">
-        ${!isMeta?`<div class="he-i" style="grid-column:span 2"><div class="hl">คงเหลือสะสม</div><div class="hv gc">${fmt(e.running)} ตัว</div></div>`:''}
+        ${!isMeta?`<div class="he-i"${e.avgW>0?'':' style="grid-column:span 2"'}><div class="hl">คงเหลือสะสม</div><div class="hv gc">${fmt(e.running)} ตัว</div></div>`:''}
+        ${e.avgW>0?`<div class="he-i"><div class="hl">น้ำหนักจับออก</div><div class="hv">${e.avgW.toFixed(1)} กก./ตัว 🔒</div></div>`:''}
         ${e.note?`<div class="he-i" style="grid-column:span ${isMeta?4:2}"><div class="hl">หมายเหตุ</div><div class="hv" style="font-size:12px;font-weight:400">${e.note}</div></div>`:''}
       </div>
     </div>`;
