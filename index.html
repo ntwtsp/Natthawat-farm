@@ -327,7 +327,15 @@
   <div class="card">
     <div style="font-size:16px;font-weight:700;margin-bottom:16px">➕ บันทึกอาหารประจำวัน</div>
     <div class="fs"><label>วันที่</label><input type="date" id="fDate" /></div>
-    <label class="rtoggle" for="cbRcv"><input type="checkbox" id="cbRcv" /><span class="tl">🚛 มีอาหารรับเข้าวันนี้</span></label>
+    <label class="rtoggle" for="cbBag" style="background:#fff7ed"><input type="checkbox" id="cbBag" onchange="toggleBagMode()" /><span class="tl">📦 อาหารกระสอบ (LAC/Postwean · 30 กก./กระสอบ)</span></label>
+    <div id="bagField" style="display:none">
+      <div class="fs"><label>เบอร์อาหาร (กระสอบ)</label>
+        <select id="fBagFeed" onchange="updateBagPreview()"><option value="Postwean">Postwean</option><option value="LAC">LAC</option></select>
+      </div>
+      <div class="fs"><label>จำนวนกระสอบที่ใช้วันนี้</label><input type="number" id="fBagUsed" placeholder="0" min="0" inputmode="numeric" oninput="updateBagPreview()" /></div>
+      <div id="bagPreview" style="display:none;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:#9a3412"></div>
+    </div>
+    <label class="rtoggle" for="cbRcv" id="rcvToggle"><input type="checkbox" id="cbRcv" /><span class="tl">🚛 มีอาหารรับเข้าวันนี้</span></label>
     <div id="rcvField" style="display:none">
       <div class="fs"><label>รับเข้า (กก.)</label><input type="number" id="fRcv" placeholder="0" min="0" inputmode="numeric" /></div>
       <div class="fs"><label>เบอร์อาหาร</label>
@@ -336,7 +344,7 @@
         <div id="fFeedHint" style="font-size:10px;color:#059669;margin-top:4px"></div>
       </div>
     </div>
-    <div class="ig">
+    <div class="ig" id="siloTanks">
       <div class="fs"><label>ถัง 1 (กก.)</label><input type="number" id="fW1" placeholder="0" min="0" inputmode="numeric" /></div>
       <div class="fs"><label>ถัง 2 (กก.)</label><input type="number" id="fW2" placeholder="0" min="0" inputmode="numeric" /></div>
     </div>
@@ -559,6 +567,11 @@ function currentFeedWeek(startDate) {
   return Math.floor(ms / (7 * 86400000)) + 1;
 }
 
+// ─── อาหารกระสอบ ───────────────────────────────────────────────────────────
+// LAC และ Postwean เป็นอาหารกระสอบ (30 กก./กระสอบ) บันทึกเป็นจำนวนกระสอบที่ใช้/วัน
+const BAG_KG = 30;
+const BAG_FEEDS = ['Postwean', 'LAC'];
+
 // ─── DB ────────────────────────────────────────────────────────────────────
 const DB_KEY = 'pigFeedData_v3';
 
@@ -572,14 +585,14 @@ function loadDB() {
     batches: [{
       id: 1, name: 'รุ่น 1', startDate: '2026-02-23',
       entries: SEED_FEED.map((e, i) => ({ id: i+1, ...e })),
-      pigEvents: [], weightRecords: [], intakeAvgWeight: null, expenseRecords: []
+      pigEvents: [], weightRecords: [], intakeAvgWeight: null, expenseRecords: [], bagEntries: []
     }]
   };
   // migrate from v2
   try {
     const v2 = JSON.parse(localStorage.getItem('pigFeedData_v2'));
     if (v2 && v2.batches) {
-      initial.batches = v2.batches.map(b => ({ ...b, pigEvents: b.pigEvents || [], weightRecords: b.weightRecords || [], intakeAvgWeight: b.intakeAvgWeight || null, expenseRecords: b.expenseRecords || [] }));
+      initial.batches = v2.batches.map(b => ({ ...b, pigEvents: b.pigEvents || [], weightRecords: b.weightRecords || [], intakeAvgWeight: b.intakeAvgWeight || null, expenseRecords: b.expenseRecords || [], bagEntries: b.bagEntries || [] }));
       initial.activeBatchId = v2.activeBatchId;
     }
   } catch {}
@@ -650,8 +663,13 @@ function batchStats(batch) {
   }
   const last = entries[entries.length-1];
   const currentRemaining = last ? (last.w1||0)+(last.w2||0) : 0;
-  const totalUsed = totalRcv - currentRemaining;
-  return { totalRcv, totalUsed, totalUsedT1, totalUsedT2, days:entries.length,
+  const siloUsed = totalRcv - currentRemaining;
+  // อาหารกระสอบ (LAC/Postwean) → แปลงเป็น กก. รวมเข้ายอดใช้ทั้งหมด (เพื่อ FCR)
+  const bagEntries = batch.bagEntries||[];
+  const bagCount = bagEntries.reduce((s,e)=>s+(e.bags||0),0);
+  const bagKg = bagCount*BAG_KG;
+  const totalUsed = siloUsed + bagKg;
+  return { totalRcv, totalUsed, siloUsed, bagKg, bagCount, totalUsedT1, totalUsedT2, days:entries.length,
     avgPerDay: usedArr.length?usedArr.reduce((a,b)=>a+b)/usedArr.length:0 };
 }
 
@@ -779,6 +797,16 @@ function renderHome() {
   document.getElementById('sPigs').textContent = batch&&(batch.pigEvents||[]).length ? fmt(pigData.count) : '—';
   if(batch) renderFeedGuide(batch);
 
+  const bs=batchStats(batch);
+  document.getElementById('batchSummary').innerHTML=`<div class="bsum"><div class="bt">📊 สรุป ${batch.name}</div><div class="bg2">
+    <div class="bi"><div class="bl">รับเข้าอาหาร</div><div class="bv">${fmt(bs.totalRcv)} กก.</div></div>
+    <div class="bi"><div class="bl">ใช้ไปรวม</div><div class="bv">${fmt(bs.totalUsed)} กก.</div></div>
+    <div class="bi"><div class="bl">บันทึกแล้ว</div><div class="bv">${bs.days} วัน</div></div>
+    <div class="bi"><div class="bl">ถัง 1 ใช้ไป</div><div class="bv">${fmt(bs.totalUsedT1)} กก.</div></div>
+    <div class="bi"><div class="bl">ถัง 2 ใช้ไป</div><div class="bv">${fmt(bs.totalUsedT2)} กก.</div></div>
+    ${bs.bagCount>0?`<div class="bi"><div class="bl">📦 อาหารกระสอบ</div><div class="bv">${fmt(bs.bagCount)} กระสอบ (${fmt(bs.bagKg)} กก.)</div></div>`:''}
+  </div></div>`;
+
   if(!entries.length){
     ['sRemain','sDays','sAvg'].forEach(id=>document.getElementById(id).textContent='—');
     document.getElementById('recentList').innerHTML='<div class="empty"><div class="ei">📋</div><p>ยังไม่มีข้อมูล</p></div>';
@@ -796,15 +824,6 @@ function renderHome() {
   if(days<1.5){fill.style.background='#dc2626';lbl.style.cssText='background:#fee2e2;color:#991b1b;font-size:11px;font-weight:600;padding:3px 9px;border-radius:7px';lbl.textContent='⚠️ วิกฤต';}
   else if(days<3){fill.style.background='#d97706';lbl.style.cssText='background:#fef3c7;color:#92400e;font-size:11px;font-weight:600;padding:3px 9px;border-radius:7px';lbl.textContent='⚡ ต่ำ';}
   else{fill.style.background='#16a34a';lbl.style.cssText='background:#dcfce7;color:#15803d;font-size:11px;font-weight:600;padding:3px 9px;border-radius:7px';lbl.textContent='✅ ปกติ';}
-
-  const bs=batchStats(batch);
-  document.getElementById('batchSummary').innerHTML=`<div class="bsum"><div class="bt">📊 สรุป ${batch.name}</div><div class="bg2">
-    <div class="bi"><div class="bl">รับเข้าอาหาร</div><div class="bv">${fmt(bs.totalRcv)} กก.</div></div>
-    <div class="bi"><div class="bl">ใช้ไปรวม</div><div class="bv">${fmt(bs.totalUsed)} กก.</div></div>
-    <div class="bi"><div class="bl">บันทึกแล้ว</div><div class="bv">${bs.days} วัน</div></div>
-    <div class="bi"><div class="bl">ถัง 1 ใช้ไป</div><div class="bv">${fmt(bs.totalUsedT1)} กก.</div></div>
-    <div class="bi"><div class="bl">ถัง 2 ใช้ไป</div><div class="bv">${fmt(bs.totalUsedT2)} กก.</div></div>
-  </div></div>`;
 
   const pigEvents=batch.pigEvents||[];
   document.getElementById('recentList').innerHTML=[...entries].slice(-5).reverse().map(e=>{
@@ -1064,10 +1083,12 @@ function deletePigEvent(id) {
 function resetForm(){
   const today=new Date().toISOString().split('T')[0];
   document.getElementById('fDate').value=today;
-  ['fW1','fW2','fRcv'].forEach(id=>document.getElementById(id).value='');
+  ['fW1','fW2','fRcv','fBagUsed'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('cbRcv').checked=false;
+  document.getElementById('cbBag').checked=false;
   document.getElementById('rcvField').style.display='none';
   document.getElementById('fpreview').style.display='none';
+  toggleBagMode();
   // เติมเบอร์อาหารที่แนะนำของสัปดาห์นี้ + hint
   const batch=getActiveBatch(loadDB());
   const wk=currentFeedWeek(batch&&batch.startDate);
@@ -1078,20 +1099,54 @@ function resetForm(){
 }
 function checkSameDay(date){
   const batch=getActiveBatch(loadDB());
-  const exists=batch&&batch.entries.some(e=>e.date===date);
-  document.getElementById('sameDayWarn').style.display=exists?'block':'none';
-  if(exists){
-    const e=batch.entries.find(e=>e.date===date);
-    document.getElementById('fW1').value=e.w1||'';
-    document.getElementById('fW2').value=e.w2||'';
-    if(e.feedNo) document.getElementById('fFeedNo').value=e.feedNo;
-    if(e.received){document.getElementById('cbRcv').checked=true;document.getElementById('rcvField').style.display='block';document.getElementById('fRcv').value=e.received;}
+  const bagE=batch&&(batch.bagEntries||[]).find(e=>e.date===date);
+  const siloE=batch&&batch.entries.find(e=>e.date===date);
+  document.getElementById('sameDayWarn').style.display=(bagE||siloE)?'block':'none';
+  if(bagE){
+    document.getElementById('cbBag').checked=true;
+    toggleBagMode();
+    document.getElementById('fBagFeed').value=bagE.feedNo||'Postwean';
+    document.getElementById('fBagUsed').value=bagE.bags||'';
+    updateBagPreview();
+  } else if(siloE){
+    document.getElementById('fW1').value=siloE.w1||'';
+    document.getElementById('fW2').value=siloE.w2||'';
+    if(siloE.feedNo) document.getElementById('fFeedNo').value=siloE.feedNo;
+    if(siloE.received){document.getElementById('cbRcv').checked=true;document.getElementById('rcvField').style.display='block';document.getElementById('fRcv').value=siloE.received;}
     updatePreview();
   }
 }
 document.getElementById('cbRcv').addEventListener('change',function(){
   document.getElementById('rcvField').style.display=this.checked?'block':'none'; updatePreview();
 });
+
+// สลับโหมดกระสอบ (LAC/Postwean) ↔ ไซโล (กก.)
+function toggleBagMode(){
+  const bag=document.getElementById('cbBag').checked;
+  document.getElementById('bagField').style.display=bag?'block':'none';
+  document.getElementById('rcvToggle').style.display=bag?'none':'';
+  document.getElementById('siloTanks').style.display=bag?'none':'';
+  if(bag){
+    document.getElementById('rcvField').style.display='none';
+    document.getElementById('fpreview').style.display='none';
+    updateBagPreview();
+  } else {
+    document.getElementById('rcvField').style.display=document.getElementById('cbRcv').checked?'block':'none';
+    updatePreview();
+  }
+}
+function updateBagPreview(){
+  const bags=parseInt(document.getElementById('fBagUsed').value)||0;
+  const el=document.getElementById('bagPreview');
+  if(bags<=0){el.style.display='none';return;}
+  const kg=bags*BAG_KG;
+  const batch=getActiveBatch(loadDB());
+  const date=document.getElementById('fDate').value;
+  const cnt=batch?calcPigCount((batch.pigEvents||[]).filter(e=>e.date<=date)).count:0;
+  const perPig=cnt>0?` · ${(kg/cnt).toFixed(2)} กก./ตัว`:'';
+  el.innerHTML=`📦 <b>${bags}</b> กระสอบ = <b>${fmt(kg)}</b> กก.${perPig}`;
+  el.style.display='block';
+}
 document.getElementById('fDate').addEventListener('change',function(){ checkSameDay(this.value); updatePreview(); });
 ['fW1','fW2','fRcv'].forEach(id=>document.getElementById(id).addEventListener('input',updatePreview));
 
@@ -1125,9 +1180,23 @@ function updatePreview(){
 
 function saveEntry(){
   const date=document.getElementById('fDate').value;
+  if(!date){showToast('⚠️ เลือกวันที่ด้วย');return;}
+  // ── โหมดอาหารกระสอบ ──
+  if(document.getElementById('cbBag').checked){
+    const bags=parseInt(document.getElementById('fBagUsed').value)||0;
+    const feedNo=document.getElementById('fBagFeed').value;
+    if(bags<=0){showToast('⚠️ ใส่จำนวนกระสอบด้วย');return;}
+    const db=loadDB(), batch=getActiveBatch(db);
+    if(!batch.bagEntries) batch.bagEntries=[];
+    const idx=batch.bagEntries.findIndex(e=>e.date===date);
+    if(idx>=0){ batch.bagEntries[idx]={id:batch.bagEntries[idx].id,date,feedNo,bags}; showToast('✅ อัปเดตข้อมูลวันนี้แล้ว'); }
+    else { batch.bagEntries.push({id:Date.now(),date,feedNo,bags}); batch.bagEntries.sort((a,b)=>new Date(a.date)-new Date(b.date)); showToast('✅ บันทึกแล้ว'); }
+    saveDB(db);
+    setTimeout(()=>showPage('home',document.querySelector('.nb')),600);
+    return;
+  }
   const w1=parseFloat(document.getElementById('fW1').value)||0;
   const w2=parseFloat(document.getElementById('fW2').value)||0;
-  if(!date){showToast('⚠️ เลือกวันที่ด้วย');return;}
   const hasRcv=document.getElementById('cbRcv').checked;
   const rcv=hasRcv?parseFloat(document.getElementById('fRcv').value)||0:0;
   const feedNo=hasRcv?document.getElementById('fFeedNo').value.trim():'';
@@ -1156,15 +1225,36 @@ document.getElementById('filterRow').querySelectorAll('.fchip').forEach(btn=>{
 
 function renderHistory(filter){
   const db=loadDB(), batch=getActiveBatch(db);
-  let entries=batch?[...batch.entries]:[];
-  const now=new Date();
-  if(filter==='7'){const c=new Date(now-7*86400000).toISOString().split('T')[0];entries=entries.filter(e=>e.date>=c);}
-  if(filter==='30'){const c=new Date(now-30*86400000).toISOString().split('T')[0];entries=entries.filter(e=>e.date>=c);}
-  if(filter==='rcv')entries=entries.filter(e=>e.received>0);
   const all=batch?batch.entries:[];
-  if(!entries.length){document.getElementById('historyList').innerHTML='<div class="empty"><div class="ei">📋</div><p>ไม่มีข้อมูล</p></div>';return;}
   const pigEvents=batch?batch.pigEvents||[]:[];
-  document.getElementById('historyList').innerHTML=[...entries].reverse().map(e=>{
+  const now=new Date();
+  let cutoff=null;
+  if(filter==='7')cutoff=new Date(now-7*86400000).toISOString().split('T')[0];
+  if(filter==='30')cutoff=new Date(now-30*86400000).toISOString().split('T')[0];
+  // รวมรายการไซโล + กระสอบ เรียงตามวันที่
+  let items=[
+    ...(batch?batch.entries:[]).map(e=>({kind:'silo',e})),
+    ...(filter==='rcv'?[]:(batch?batch.bagEntries||[]:[]).map(e=>({kind:'bag',e}))),
+  ];
+  if(cutoff)items=items.filter(it=>it.e.date>=cutoff);
+  if(filter==='rcv')items=items.filter(it=>it.e.received>0);
+  items.sort((a,b)=>a.e.date<b.e.date?1:a.e.date>b.e.date?-1:0);
+  if(!items.length){document.getElementById('historyList').innerHTML='<div class="empty"><div class="ei">📋</div><p>ไม่มีข้อมูล</p></div>';return;}
+  document.getElementById('historyList').innerHTML=items.map(it=>{
+    const e=it.e;
+    if(it.kind==='bag'){
+      const kg=(e.bags||0)*BAG_KG;
+      const cnt=calcPigCount(pigEvents.filter(p=>p.date<=e.date)).count;
+      const bfpp=cnt>0?(kg/cnt).toFixed(2)+' กก./ตัว':'—';
+      return`<div class="hentry" style="border-left:3px solid #ea580c" id="be-${e.id}">
+        <button class="delbtn" onclick="delBag(${e.id})">✕</button>
+        <div class="he-hd"><div class="he-dt">📅 ${fmtDate(e.date)} · <span style="color:#ea580c;font-weight:700">📦 ${e.feedNo}</span></div><div class="he-rc" style="background:#ffedd5;color:#9a3412">${e.bags} กระสอบ</div></div>
+        <div class="he-g">
+          <div class="he-i"><div class="hl">ใช้ไป</div><div class="hv gc">${e.bags} กระสอบ</div></div>
+          <div class="he-i"><div class="hl">= น้ำหนัก</div><div class="hv">${fmt(kg)} กก.</div></div>
+          <div class="he-i" style="grid-column:span 2"><div class="hl">อาหาร/ตัว/วัน</div><div class="hv gc">${bfpp}</div></div>
+        </div></div>`;
+    }
     const c=calcEntry(e,all);
     let ec='';
     if(c.days!=null){if(c.days<1.5){ec='dg';}else if(c.days<3){ec='wn';}}
@@ -1219,6 +1309,12 @@ function delFeed(id){
   if(!confirm('ลบรายการนี้?'))return;
   const db=loadDB(),batch=getActiveBatch(db);
   batch.entries=batch.entries.filter(e=>e.id!==id);
+  saveDB(db); renderHistory(curFilter); showToast('🗑️ ลบแล้ว');
+}
+function delBag(id){
+  if(!confirm('ลบรายการนี้?'))return;
+  const db=loadDB(),batch=getActiveBatch(db);
+  batch.bagEntries=(batch.bagEntries||[]).filter(e=>e.id!==id);
   saveDB(db); renderHistory(curFilter); showToast('🗑️ ลบแล้ว');
 }
 
@@ -1446,13 +1542,23 @@ function exportToExcel() {
     ];
   });
   const bs = batchStats(batch);
+  const bagList = (batch.bagEntries||[]).slice().sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const bagDetail = bagList.length ? [
+    [],
+    ['อาหารกระสอบ','วันที่','เบอร์','กระสอบ','= กก.'],
+    ...bagList.map(e=>['',e.date,e.feedNo,e.bags||0,(e.bags||0)*BAG_KG]),
+  ] : [];
   const feedSummary = [
     [],
     ['สรุป','รับเข้าอาหารรวม (กก.)',bs.totalRcv],
-    ['','ใช้ไปรวม (กก.)',bs.totalUsed],
+    ['','ใช้ไปรวม (ไซโล+กระสอบ) (กก.)',bs.totalUsed],
+    ['','ใช้ไปไซโล (กก.)',bs.siloUsed],
     ['','ถัง1 ใช้ไปรวม (กก.)',bs.totalUsedT1],
     ['','ถัง2 ใช้ไปรวม (กก.)',bs.totalUsedT2],
+    ['','อาหารกระสอบใช้ไป (กระสอบ)',bs.bagCount],
+    ['','อาหารกระสอบใช้ไป (กก.)',bs.bagKg],
     ['','จำนวนวันที่บันทึก (วัน)',bs.days],
+    ...bagDetail,
   ];
   const ws1 = XLSX.utils.aoa_to_sheet([feedHeader, ...feedRows, ...feedSummary]);
   ws1['!cols'] = [{wch:12},{wch:10},{wch:10},{wch:12},{wch:12},{wch:12},{wch:14},{wch:14},{wch:12},{wch:12}];
