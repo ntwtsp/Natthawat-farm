@@ -455,6 +455,7 @@
     <div class="fs"><label>วันที่</label><input type="date" id="pmDate" /></div>
     <div class="fs" id="pmCountWrap"><label>จำนวน (ตัว)</label><input type="number" id="pmCount" placeholder="0" min="0" inputmode="numeric" /></div>
     <div class="fs" id="pmWeightWrap" style="display:none"><label>น้ำหนักเฉลี่ยตอนจับออก (กก./ตัว)</label><input type="number" id="pmAvgW" placeholder="0.0" min="0" step="0.1" inputmode="decimal" /><div style="font-size:10px;color:#6b7280;margin-top:4px">📐 ใส่เพื่อให้ FCR แม่นยำ — น้ำหนักหมูที่จับออกจะถูกล็อกเป็นผลผลิต</div></div>
+    <div class="fs" id="pmAgeWrap" style="display:none"><label>อายุหมูตอนรับเข้า (สัปดาห์)</label><input type="number" id="pmAgeW" placeholder="เช่น 4 (หย่านม) หรือ 13" min="1" max="27" inputmode="numeric" /><div style="font-size:10px;color:#6b7280;margin-top:4px">🐷 เพื่อเทียบตารางอาหาร CP ให้ตรงอายุ (สัปดาห์ที่ 1 = อายุ 4 สัปดาห์)</div></div>
     <div class="fs"><label>หมายเหตุ (ไม่บังคับ)</label><textarea id="pmNote" placeholder="รายละเอียดเพิ่มเติม..."></textarea></div>
     <button class="mbtn pri" onclick="savePigEvent()">💾 บันทึก</button>
     <button class="mbtn cnl" onclick="document.getElementById('ovPig').classList.remove('open')">ยกเลิก</button>
@@ -559,12 +560,14 @@ const FEED_STANDARD = [
   {w:23,feed:'553 LF',kg:2.80, cum:303.00}, {w:24,feed:'553 LF',kg:2.80, cum:322.60},
 ];
 
-// สัปดาห์ปัจจุบันจากวันลงลูกสุกร (สัปดาห์ที่ 1 = 7 วันแรก)
-function currentFeedWeek(startDate) {
+// สัปดาห์โปรแกรมอาหาร CP (สัปดาห์ที่ 1 = อายุ 4 สัปดาห์ = หย่านม)
+// intakeAgeWeeks = อายุหมูตอนรับเข้า (ค่าเริ่มต้น 4). รับหมูอายุมากกว่า → เริ่มที่สัปดาห์ที่สูงขึ้น
+function currentFeedWeek(startDate, intakeAgeWeeks) {
   if (!startDate) return null;
   const ms = Date.now() - new Date(startDate + 'T00:00:00').getTime();
   if (ms < 0) return null;
-  return Math.floor(ms / (7 * 86400000)) + 1;
+  const offset = ((intakeAgeWeeks || 4) - 4);
+  return Math.max(1, offset + Math.floor(ms / (7 * 86400000)) + 1);
 }
 
 // ─── อาหารกระสอบ ───────────────────────────────────────────────────────────
@@ -734,7 +737,7 @@ function switchBatch(id){
 function renderFeedGuide(batch) {
   const el=document.getElementById('feedGuide');
   if(!el) return;
-  const week=currentFeedWeek(batch&&batch.startDate);
+  const week=currentFeedWeek(batch&&batch.startDate, batch&&batch.intakeAgeWeeks);
   if(!week){el.innerHTML='';return;}
 
   const maxW=FEED_STANDARD.length;
@@ -770,7 +773,7 @@ function renderFeedGuide(batch) {
   el.innerHTML=`<div class="card" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;box-shadow:0 4px 14px rgba(5,150,105,.3)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
       <span style="font-size:13px;font-weight:700">🎯 เกณฑ์อาหาร ในสัปดาห์นี้</span>
-      <span style="background:rgba(255,255,255,.22);font-size:11px;font-weight:700;padding:3px 10px;border-radius:8px">สัปดาห์ที่ ${week}${over?`+`:''}</span>
+      <span style="background:rgba(255,255,255,.22);font-size:11px;font-weight:700;padding:3px 10px;border-radius:8px">สัปดาห์ที่ ${week}${over?`+`:''} · อายุ ~${week+3} สัปดาห์</span>
     </div>
     <div style="display:flex;align-items:baseline;gap:8px">
       <div style="font-size:30px;font-weight:800;line-height:1">${std.kg.toFixed(2)}</div>
@@ -1047,6 +1050,9 @@ function openPigModal(type) {
   document.getElementById('pmAvgW').value='';
   document.getElementById('pmCountWrap').style.display=type==='หมายเหตุ'?'none':'block';
   document.getElementById('pmWeightWrap').style.display=(type==='ขาย'||type==='คัดทิ้ง')?'block':'none';
+  document.getElementById('pmAgeWrap').style.display=type==='รับเข้า'?'block':'none';
+  if(type==='รับเข้า'){ const b=getActiveBatch(loadDB()); document.getElementById('pmAgeW').value=(b&&b.intakeAgeWeeks)||''; }
+  else { document.getElementById('pmAgeW').value=''; }
   document.getElementById('ovPig').classList.add('open');
 }
 
@@ -1062,6 +1068,10 @@ function savePigEvent() {
   if(currentPigType==='ขาย'||currentPigType==='คัดทิ้ง'){
     const avgW=parseFloat(document.getElementById('pmAvgW').value);
     if(!isNaN(avgW)&&avgW>0) evt.avgW=avgW;
+  }
+  if(currentPigType==='รับเข้า'){
+    const ageW=parseInt(document.getElementById('pmAgeW').value);
+    if(!isNaN(ageW)&&ageW>0){ evt.ageWeeks=ageW; batch.intakeAgeWeeks=ageW; }
   }
   batch.pigEvents.push(evt);
   batch.pigEvents.sort((a,b)=>new Date(a.date)-new Date(b.date));
@@ -1091,7 +1101,7 @@ function resetForm(){
   toggleBagMode();
   // เติมเบอร์อาหารที่แนะนำของสัปดาห์นี้ + hint
   const batch=getActiveBatch(loadDB());
-  const wk=currentFeedWeek(batch&&batch.startDate);
+  const wk=currentFeedWeek(batch&&batch.startDate, batch&&batch.intakeAgeWeeks);
   const rec=wk?FEED_STANDARD[Math.min(wk,FEED_STANDARD.length)-1].feed:null;
   document.getElementById('fFeedNo').value=rec||'';
   document.getElementById('fFeedHint').textContent=rec?`💡 เกณฑ์ CP สัปดาห์ที่ ${wk}: ${rec}`:'';
