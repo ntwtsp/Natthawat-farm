@@ -609,10 +609,17 @@ const DB_KEY = 'pigFeedData_v3';
 function loadDB() {
   try {
     const d = JSON.parse(localStorage.getItem(DB_KEY));
-    if (d && d.batches) return d;
+    if (d && d.batches) {
+      if (!d.weatherLog) {
+        // ย้ายอากาศจากที่เก็บเดิม (local) เข้ามาใน db เพื่อ sync ขึ้น cloud
+        try { d.weatherLog = JSON.parse(localStorage.getItem('pigWeatherLog_v1')) || {}; } catch { d.weatherLog = {}; }
+      }
+      return d;
+    }
   } catch {}
   const initial = {
     activeBatchId: 1,
+    weatherLog: {},
     batches: [{
       id: 1, name: 'รุ่น 1', startDate: '2026-02-23',
       entries: SEED_FEED.map((e, i) => ({ id: i+1, ...e })),
@@ -1732,9 +1739,8 @@ async function initSync(){
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
 
 // ─── WEATHER (Open-Meteo — ฟรี ไม่ต้องใช้ API key) ──────────────────────────
-const WEATHER_KEY = 'pigWeatherLog_v1';
-function loadWeather(){ try{ return JSON.parse(localStorage.getItem(WEATHER_KEY))||{}; }catch{ return {}; } }
-function saveWeather(w){ try{ localStorage.setItem(WEATHER_KEY, JSON.stringify(w)); }catch{} }
+// อากาศเก็บใน db.weatherLog → sync ขึ้น cloud อัตโนมัติผ่าน saveDB
+function loadWeather(){ return loadDB().weatherLog || {}; }
 
 function getPosition(){
   return new Promise((res,rej)=>{
@@ -1748,7 +1754,8 @@ function getPosition(){
 // ดึงอากาศรายชั่วโมงของวันนี้ (Open-Meteo คืนทั้งวัน: ชม.ที่ผ่านมา=จริง, ข้างหน้า=พยากรณ์)
 async function fetchWeatherToday(){
   const today = new Date().toISOString().split('T')[0];
-  const log = loadWeather(), existing = log[today];
+  const db = loadDB(); const log = db.weatherLog || (db.weatherLog = {});
+  const existing = log[today];
   if(existing && existing.updatedAt && (Date.now()-new Date(existing.updatedAt).getTime() < 30*60000)) return existing;
   let pos;
   try{ pos = await getPosition(); }catch(e){ return existing||null; }
@@ -1761,7 +1768,7 @@ async function fetchWeatherToday(){
     const hours = times.map((t,i)=>({ h:new Date(t).getHours(), t:temps[i], rh:rhs[i] }));
     log[today] = { lat:+pos.lat.toFixed(3), lon:+pos.lon.toFixed(3), updatedAt:new Date().toISOString(), hours };
     const keys = Object.keys(log).sort(); while(keys.length>400){ delete log[keys.shift()]; }
-    saveWeather(log);
+    saveDB(db);   // เก็บลง localStorage + sync ขึ้น cloud
     return log[today];
   }catch(e){ return existing||null; }
 }
@@ -1803,8 +1810,7 @@ function startWeatherAuto(){
 if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
 renderBatchHeader();
 renderHome();
-initSync();
-startWeatherAuto();
+initSync().then(startWeatherAuto, startWeatherAuto);
 </script>
 </body>
 </html>
