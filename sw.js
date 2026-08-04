@@ -1,4 +1,4 @@
-const CACHE = 'pig-feed-v19';
+const CACHE = 'pig-feed-v20';
 const ASSETS = ['/Natthawat-farm/', '/Natthawat-farm/index.html'];
 
 self.addEventListener('install', e => {
