@@ -463,6 +463,14 @@
   </div>
 </div>
 
+<!-- MODAL: WEATHER -->
+<div class="overlay" id="ovWeather" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <div id="weatherModalBody"></div>
+    <button class="mbtn cnl" onclick="document.getElementById('ovWeather').classList.remove('open')" style="margin-top:12px">ปิด</button>
+  </div>
+</div>
+
 <!-- MODAL: SYNC -->
 <div class="overlay" id="ovSync" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal">
@@ -1298,6 +1306,9 @@ function renderHistory(filter){
     return`<div class="hentry ${ec}" id="he-${e.id}">
       <button class="delbtn" onclick="delFeed(${e.id})">✕</button>
       <div class="he-hd"><div class="he-dt">📅 ${fmtDate(e.date)}${e.feedNo?` · <span style="color:#059669;font-weight:700">🌾 ${e.feedNo}</span>`:''}</div>${e.received?`<div class="he-rc">🚛 +${fmt(e.received)} กก.</div>`:''}</div>
+      ${(function(){const ws=weatherSummary(e.date);return ws?`<div onclick="event.stopPropagation();openWeatherModal('${e.date}')" style="display:flex;gap:12px;align-items:center;margin:2px 0 8px;padding:6px 10px;background:#eff6ff;border-radius:8px;font-size:12px;color:#1e40af;cursor:pointer">
+        <span>🌡️ ${ws.tMin.toFixed(0)}–${ws.tMax.toFixed(0)}°C</span><span>💧 ${ws.rhAvg!=null?ws.rhAvg+'%':'—'}</span>
+        <span style="margin-left:auto;font-size:10px;color:#3b82f6">🕐 รายชั่วโมง ›</span></div>`:'';})()}
       <div class="he-g">
         <div class="he-i"><div class="hl">ถัง 1</div><div class="hv">${fmt(e.w1)}</div></div>
         <div class="he-i"><div class="hl">ถัง 2</div><div class="hv">${fmt(e.w2)}</div></div>
@@ -1720,11 +1731,80 @@ async function initSync(){
 // ─── TOAST ─────────────────────────────────────────────────────────────────
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
 
+// ─── WEATHER (Open-Meteo — ฟรี ไม่ต้องใช้ API key) ──────────────────────────
+const WEATHER_KEY = 'pigWeatherLog_v1';
+function loadWeather(){ try{ return JSON.parse(localStorage.getItem(WEATHER_KEY))||{}; }catch{ return {}; } }
+function saveWeather(w){ try{ localStorage.setItem(WEATHER_KEY, JSON.stringify(w)); }catch{} }
+
+function getPosition(){
+  return new Promise((res,rej)=>{
+    if(!navigator.geolocation) return rej(new Error('no geolocation'));
+    navigator.geolocation.getCurrentPosition(
+      p=>res({lat:p.coords.latitude, lon:p.coords.longitude}),
+      e=>rej(e), {enableHighAccuracy:false, timeout:10000, maximumAge:1800000});
+  });
+}
+
+// ดึงอากาศรายชั่วโมงของวันนี้ (Open-Meteo คืนทั้งวัน: ชม.ที่ผ่านมา=จริง, ข้างหน้า=พยากรณ์)
+async function fetchWeatherToday(){
+  const today = new Date().toISOString().split('T')[0];
+  const log = loadWeather(), existing = log[today];
+  if(existing && existing.updatedAt && (Date.now()-new Date(existing.updatedAt).getTime() < 30*60000)) return existing;
+  let pos;
+  try{ pos = await getPosition(); }catch(e){ return existing||null; }
+  try{
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${pos.lat}&longitude=${pos.lon}&hourly=temperature_2m,relative_humidity_2m&timezone=auto&forecast_days=1`;
+    const r = await fetch(url);
+    if(!r.ok) throw new Error('http '+r.status);
+    const j = await r.json();
+    const times=j.hourly.time, temps=j.hourly.temperature_2m, rhs=j.hourly.relative_humidity_2m;
+    const hours = times.map((t,i)=>({ h:new Date(t).getHours(), t:temps[i], rh:rhs[i] }));
+    log[today] = { lat:+pos.lat.toFixed(3), lon:+pos.lon.toFixed(3), updatedAt:new Date().toISOString(), hours };
+    const keys = Object.keys(log).sort(); while(keys.length>400){ delete log[keys.shift()]; }
+    saveWeather(log);
+    return log[today];
+  }catch(e){ return existing||null; }
+}
+
+function weatherSummary(date){
+  const rec = loadWeather()[date];
+  if(!rec || !rec.hours || !rec.hours.length) return null;
+  const ts = rec.hours.map(h=>h.t).filter(v=>v!=null);
+  const rh = rec.hours.map(h=>h.rh).filter(v=>v!=null);
+  if(!ts.length) return null;
+  return { tMin:Math.min(...ts), tMax:Math.max(...ts), rhAvg:rh.length?Math.round(rh.reduce((a,b)=>a+b)/rh.length):null };
+}
+
+function openWeatherModal(date){
+  const rec = loadWeather()[date];
+  if(!rec || !rec.hours){ showToast('ยังไม่มีข้อมูลอากาศของวันนี้'); return; }
+  const now = new Date(), isToday = date===now.toISOString().split('T')[0], nowH = now.getHours();
+  const rows = rec.hours.map(h=>{
+    const future = isToday && h.h>nowH;
+    return `<div style="display:flex;justify-content:space-between;padding:5px 2px;border-bottom:1px solid #f3f4f6;font-size:12.5px;${future?'opacity:.55':''}">
+      <span style="color:#6b7280">${String(h.h).padStart(2,'0')}:00${future?' <span style="font-size:9px">พยากรณ์</span>':''}</span>
+      <span>🌡️ ${h.t!=null?h.t.toFixed(1)+'°C':'—'}</span><span>💧 ${h.rh!=null?h.rh+'%':'—'}</span></div>`;
+  }).join('');
+  document.getElementById('weatherModalBody').innerHTML =
+    `<div style="font-size:14px;font-weight:700;margin-bottom:10px">🌦️ อากาศรายชั่วโมง · ${fmtDate(date)}</div>
+     <div style="max-height:52vh;overflow-y:auto">${rows}</div>
+     <div style="font-size:10px;color:#9ca3af;margin-top:10px">📍 ${rec.lat}, ${rec.lon} · อัปเดต ${new Date(rec.updatedAt).toLocaleString('th-TH',{hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'})}</div>`;
+  document.getElementById('ovWeather').classList.add('open');
+}
+
+let _weatherTimer=null;
+function startWeatherAuto(){
+  fetchWeatherToday().then(()=>{ if(curPage==='history') renderHistory(curFilter); });
+  if(_weatherTimer) clearInterval(_weatherTimer);
+  _weatherTimer = setInterval(()=>{ fetchWeatherToday().then(()=>{ if(curPage==='history') renderHistory(curFilter); }); }, 60*60*1000);
+}
+
 // ─── INIT ──────────────────────────────────────────────────────────────────
 if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
 renderBatchHeader();
 renderHome();
 initSync();
+startWeatherAuto();
 </script>
 </body>
 </html>
