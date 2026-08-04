@@ -340,7 +340,7 @@
       <div class="fs"><label>รับเข้า (กก.)</label><input type="number" id="fRcv" placeholder="0" min="0" inputmode="numeric" /></div>
       <div class="fs"><label>เบอร์อาหาร</label>
         <input type="text" id="fFeedNo" list="feedNoList" placeholder="เช่น 591 LF" autocomplete="off" />
-        <datalist id="feedNoList"><option value="Postwean"></option><option value="LAC"></option><option value="KPF"></option><option value="550 F"></option><option value="551 F"></option><option value="591 LF"></option><option value="552 SF"></option><option value="553 LF"></option></datalist>
+        <datalist id="feedNoList"><option value="Postwean"></option><option value="LAC"></option><option value="KPF"></option><option value="550 F"></option><option value="551 F"></option><option value="591 LF"></option><option value="552 SF"></option><option value="553 LF"></option><option value="550 F-L"></option><option value="551 F-L"></option><option value="591 LF-L"></option><option value="552 BSF"></option><option value="553 BSF"></option></datalist>
         <div id="fFeedHint" style="font-size:10px;color:#059669;margin-top:4px"></div>
       </div>
     </div>
@@ -455,6 +455,7 @@
     <div class="fs"><label>วันที่</label><input type="date" id="pmDate" /></div>
     <div class="fs" id="pmCountWrap"><label>จำนวน (ตัว)</label><input type="number" id="pmCount" placeholder="0" min="0" inputmode="numeric" /></div>
     <div class="fs" id="pmWeightWrap" style="display:none"><label>น้ำหนักเฉลี่ยตอนจับออก (กก./ตัว)</label><input type="number" id="pmAvgW" placeholder="0.0" min="0" step="0.1" inputmode="decimal" /><div style="font-size:10px;color:#6b7280;margin-top:4px">📐 ใส่เพื่อให้ FCR แม่นยำ — น้ำหนักหมูที่จับออกจะถูกล็อกเป็นผลผลิต</div></div>
+    <div class="fs" id="pmBreedWrap" style="display:none"><label>พันธุ์สุกร</label><select id="pmBreed"><option value="3x">3 สาย (คละเพศ)</option><option value="kurobuta">คูโรบูตะ (Kurobuta)</option></select><div style="font-size:10px;color:#6b7280;margin-top:4px">🐖 ใช้เลือกตารางอาหาร CP ให้ตรงพันธุ์</div></div>
     <div class="fs" id="pmAgeWrap" style="display:none"><label>อายุหมูตอนรับเข้า (สัปดาห์)</label><input type="number" id="pmAgeW" placeholder="เช่น 4 (หย่านม) หรือ 13" min="1" max="27" inputmode="numeric" /><div style="font-size:10px;color:#6b7280;margin-top:4px">🐷 เพื่อเทียบตารางอาหาร CP ให้ตรงอายุ (สัปดาห์ที่ 1 = อายุ 4 สัปดาห์)</div></div>
     <div class="fs"><label>หมายเหตุ (ไม่บังคับ)</label><textarea id="pmNote" placeholder="รายละเอียดเพิ่มเติม..."></textarea></div>
     <button class="mbtn pri" onclick="savePigEvent()">💾 บันทึก</button>
@@ -559,6 +560,25 @@ const FEED_STANDARD = [
   {w:21,feed:'553 LF',kg:2.80, cum:263.80}, {w:22,feed:'553 LF',kg:2.80, cum:283.40},
   {w:23,feed:'553 LF',kg:2.80, cum:303.00}, {w:24,feed:'553 LF',kg:2.80, cum:322.60},
 ];
+
+// มาตรฐานการกินอาหาร CP — สุกรคูโรบูตะ (คละเพศ · หย่านม 6.5 กก. · กินเต็มที่ 3 กก./ตัว/วัน)
+const FEED_STANDARD_KUROBUTA = [
+  {w:1, feed:'LAC',     kg:0.22, cum:1.53},   {w:2, feed:'LAC',     kg:0.41, cum:4.38},
+  {w:3, feed:'KPF',     kg:0.59, cum:8.53},   {w:4, feed:'KPF',     kg:0.77, cum:13.93},
+  {w:5, feed:'550 F-L', kg:0.95, cum:20.57},  {w:6, feed:'550 F-L', kg:1.12, cum:28.39},
+  {w:7, feed:'551 F-L', kg:1.28, cum:37.38},  {w:8, feed:'551 F-L', kg:1.45, cum:47.50},
+  {w:9, feed:'591 LF-L',kg:1.60, cum:58.72},  {w:10,feed:'591 LF-L',kg:1.75, cum:71.01},
+  {w:11,feed:'591 LF-L',kg:1.90, cum:84.33},  {w:12,feed:'591 LF-L',kg:2.05, cum:98.65},
+  {w:13,feed:'552 BSF', kg:2.18, cum:113.93}, {w:14,feed:'552 BSF', kg:2.32, cum:130.16},
+  {w:15,feed:'552 BSF', kg:2.45, cum:147.29}, {w:16,feed:'552 BSF', kg:2.57, cum:165.29},
+  {w:17,feed:'552 BSF', kg:2.69, cum:184.13}, {w:18,feed:'553 BSF', kg:2.81, cum:203.77},
+  {w:19,feed:'553 BSF', kg:2.92, cum:224.19}, {w:20,feed:'553 BSF', kg:3.00, cum:245.19},
+  {w:21,feed:'553 BSF', kg:3.00, cum:266.19}, {w:22,feed:'553 BSF', kg:3.00, cum:287.19},
+  {w:23,feed:'553 BSF', kg:3.00, cum:308.19}, {w:24,feed:'553 BSF', kg:3.00, cum:329.19},
+];
+
+// เลือกตารางอาหารตามพันธุ์สุกร (ค่าเริ่มต้น = 3 สาย)
+function feedTableFor(batch){ return (batch && batch.breed==='kurobuta') ? FEED_STANDARD_KUROBUTA : FEED_STANDARD; }
 
 // สัปดาห์โปรแกรมอาหาร CP (สัปดาห์ที่ 1 = อายุ 4 สัปดาห์ = หย่านม)
 // intakeAgeWeeks = อายุหมูตอนรับเข้า (ค่าเริ่มต้น 4). รับหมูอายุมากกว่า → เริ่มที่สัปดาห์ที่สูงขึ้น
@@ -740,9 +760,10 @@ function renderFeedGuide(batch) {
   const week=currentFeedWeek(batch&&batch.startDate, batch&&batch.intakeAgeWeeks);
   if(!week){el.innerHTML='';return;}
 
-  const maxW=FEED_STANDARD.length;
+  const tbl=feedTableFor(batch);
+  const maxW=tbl.length;
   const over=week>maxW;
-  const std=FEED_STANDARD[Math.min(week,maxW)-1];
+  const std=tbl[Math.min(week,maxW)-1];
   const pigCount=calcPigCount(batch.pigEvents||[]).count;
   const herd=pigCount>0 ? std.kg*pigCount : null;
 
@@ -772,7 +793,7 @@ function renderFeedGuide(batch) {
 
   el.innerHTML=`<div class="card" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;box-shadow:0 4px 14px rgba(5,150,105,.3)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-      <span style="font-size:13px;font-weight:700">🎯 เกณฑ์อาหาร ในสัปดาห์นี้</span>
+      <span style="font-size:13px;font-weight:700">🎯 เกณฑ์อาหาร${batch&&batch.breed==='kurobuta'?' (คูโรบูตะ)':''} ในสัปดาห์นี้</span>
       <span style="background:rgba(255,255,255,.22);font-size:11px;font-weight:700;padding:3px 10px;border-radius:8px">สัปดาห์ที่ ${week}${over?`+`:''} · อายุ ~${week+3} สัปดาห์</span>
     </div>
     <div style="display:flex;align-items:baseline;gap:8px">
@@ -1051,7 +1072,8 @@ function openPigModal(type) {
   document.getElementById('pmCountWrap').style.display=type==='หมายเหตุ'?'none':'block';
   document.getElementById('pmWeightWrap').style.display=(type==='ขาย'||type==='คัดทิ้ง')?'block':'none';
   document.getElementById('pmAgeWrap').style.display=type==='รับเข้า'?'block':'none';
-  if(type==='รับเข้า'){ const b=getActiveBatch(loadDB()); document.getElementById('pmAgeW').value=(b&&b.intakeAgeWeeks)||''; }
+  document.getElementById('pmBreedWrap').style.display=type==='รับเข้า'?'block':'none';
+  if(type==='รับเข้า'){ const b=getActiveBatch(loadDB()); document.getElementById('pmAgeW').value=(b&&b.intakeAgeWeeks)||''; document.getElementById('pmBreed').value=(b&&b.breed)||'3x'; }
   else { document.getElementById('pmAgeW').value=''; }
   document.getElementById('ovPig').classList.add('open');
 }
@@ -1072,6 +1094,8 @@ function savePigEvent() {
   if(currentPigType==='รับเข้า'){
     const ageW=parseInt(document.getElementById('pmAgeW').value);
     if(!isNaN(ageW)&&ageW>0){ evt.ageWeeks=ageW; batch.intakeAgeWeeks=ageW; }
+    const breed=document.getElementById('pmBreed').value;
+    if(breed){ evt.breed=breed; batch.breed=breed; }
   }
   batch.pigEvents.push(evt);
   batch.pigEvents.sort((a,b)=>new Date(a.date)-new Date(b.date));
@@ -1102,7 +1126,8 @@ function resetForm(){
   // เติมเบอร์อาหารที่แนะนำของสัปดาห์นี้ + hint
   const batch=getActiveBatch(loadDB());
   const wk=currentFeedWeek(batch&&batch.startDate, batch&&batch.intakeAgeWeeks);
-  const rec=wk?FEED_STANDARD[Math.min(wk,FEED_STANDARD.length)-1].feed:null;
+  const tbl=feedTableFor(batch);
+  const rec=wk?tbl[Math.min(wk,tbl.length)-1].feed:null;
   document.getElementById('fFeedNo').value=rec||'';
   document.getElementById('fFeedHint').textContent=rec?`💡 เกณฑ์ CP สัปดาห์ที่ ${wk}: ${rec}`:'';
   checkSameDay(today);
