@@ -388,6 +388,10 @@
   <div id="expSections"></div>
 </div>
 
+<div id="page-meds" class="page">
+  <div id="medsBody"></div>
+</div>
+
 <!-- NAV -->
 <nav class="nav">
   <button class="nb active" onclick="showPage('home',this)">
@@ -409,6 +413,10 @@
   <button class="nb" onclick="showPage('expense',this)">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
     <span>ค่าใช้จ่าย</span>
+  </button>
+  <button class="nb" onclick="showPage('meds',this)">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.5 20.5a5.5 5.5 0 0 1-3.89-9.39l6-6a5.5 5.5 0 0 1 7.78 7.78l-6 6a5.47 5.47 0 0 1-3.89 1.61Zm2.83-14.83-3.66 3.66 5 5 3.66-3.66a3.5 3.5 0 0 0-4.95-4.95Z"/></svg>
+    <span>ยา</span>
   </button>
 </nav>
 
@@ -738,6 +746,7 @@ function showPage(name, btn) {
   if(name==='history'){renderHistory(curFilter);renderPigHistory();}
   if(name==='add') resetForm();
   if(name==='expense') renderExpense();
+  if(name==='meds') renderMeds();
 }
 
 function switchHistTab(tab,btn) {
@@ -1737,6 +1746,126 @@ async function initSync(){
 
 // ─── TOAST ─────────────────────────────────────────────────────────────────
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+
+// ─── ยา / วินิจฉัยโรค ────────────────────────────────────────────────────────
+// อายุ (สัปดาห์) → น้ำหนักโดยประมาณ (กก.) หมูขุนมาตรฐาน (ประเมินคร่าว ปรับได้)
+const AGE_WEIGHT = [[4,6.5],[6,11],[8,18],[10,26],[12,35],[14,46],[16,58],[18,70],[20,83],[22,95],[24,105],[27,120]];
+function estWeightForAge(age){
+  if(age==null) return null;
+  const t=AGE_WEIGHT;
+  if(age<=t[0][0]) return t[0][1];
+  if(age>=t[t.length-1][0]) return t[t.length-1][1];
+  for(let i=1;i<t.length;i++){ if(age<=t[i][0]){ const a0=t[i-1][0],w0=t[i-1][1],a1=t[i][0],w1=t[i][1]; return w0+(w1-w0)*(age-a0)/(a1-a0); } }
+  return t[t.length-1][1];
+}
+
+const DRUGS = [
+  {id:'naoen',   name:'NAO-EN 50',       active:'Enrofloxacin 50 มก./มล.', type:'ปฏิชีวนะ', form:'inject', route:'ฉีดเข้ากล้าม/ใต้ผิวหนัง', mlPerKg:0.05,  doseText:'2.5 มก./กก. (≈ 1 มล. ต่อ 20 กก.) วันละครั้ง 3–5 วัน', wd:'เนื้อ ~10–14 วัน'},
+  {id:'penstrep',name:'PENDISTREP L.A.', active:'Penicillin + Streptomycin', type:'ปฏิชีวนะ', form:'inject', route:'ฉีดเข้ากล้าม', mlPerKg:0.04, doseText:'≈ 1 มล. ต่อ 25 กก. ทุก 48 ชม.', wd:'เนื้อ ~23–30 วัน'},
+  {id:'mutalin', name:'MUTALIN 20%',     active:'Tiamulin 162 มก./มล.', type:'ปฏิชีวนะ', form:'inject', route:'ฉีดเข้ากล้าม', mlPerKg:0.074, doseText:'10–15 มก./กก. (≈ 1 มล. ต่อ 13 กก.) วันละครั้ง', wd:'เนื้อ — เช็กฉลาก', warn:'⚠️ ห้ามใช้ร่วมยาไอโอโนฟอร์ (โมเนนซิน/ซาลิโนมัยซิน/นาราซิน) — เป็นพิษถึงตาย'},
+  {id:'novalcin',name:'NOVALCIN',        active:'Dipyrone 500 มก./มล.', type:'ลดไข้/แก้ปวด', form:'inject', route:'ฉีดเข้ากล้าม', mlPerKg:0.05, doseText:'~25 มก./กก. (≈ 1 มล. ต่อ 20 กก.) เมื่อมีไข้/ปวด', wd:'เนื้อ — เช็กฉลาก', note:'ไม่ใช่ยาฆ่าเชื้อ — ลดไข้/แก้ปวด ใช้ร่วมกับปฏิชีวนะ'},
+  {id:'neonova', name:'NEONOVA-500',     active:'Neomycin 500 ก./กก.', type:'ปฏิชีวนะ (ลำไส้)', form:'oral', route:'ผสมน้ำดื่ม', mgPerKg:30, doseText:'30 มก.ผลิตภัณฑ์/กก.น้ำหนักตัว/วัน 3–5 วัน', wd:'เนื้อสุกร 20 วัน'},
+  {id:'amox',    name:'AMOXICILLIN-80%', active:'Amoxicillin 697 มก./ก.', type:'ปฏิชีวนะ', form:'oral', route:'ผสมอาหาร/น้ำ', mgPerKg:20, doseText:'~20 มก.ผลิตภัณฑ์/กก.น้ำหนักตัว/วัน 3–5 วัน', wd:'เนื้อ — เช็กฉลาก'},
+];
+const DRUG_BY_ID = Object.fromEntries(DRUGS.map(d=>[d.id,d]));
+
+const DISEASES = [
+ {cat:'ท้องเสีย / ขี้ผิดปกติ', icon:'💩', items:[
+   {name:'ท้องเสีย E. coli (โคลิบาซิลโลสิส)', signs:'ขี้เหลว–เป็นน้ำ สีเหลือง/เทา ไม่มีเลือด · พบมากในลูกหมู–หมูรุ่น · ตัวแห้ง ตาลึก ขาดน้ำ', drugs:['neonova','amox','naoen'], tip:'ให้น้ำเกลือแร่ร่วมด้วย กันขาดน้ำ'},
+   {name:'บิดมูกเลือด (Swine Dysentery)', signs:'ขี้มีมูกปนเลือด สีน้ำตาลดำ–แดง · ผอมลงเร็ว โตช้า · หมูรุ่น–ขุน', drugs:['mutalin'], tip:'Tiamulin ได้ผลดีที่สุด'},
+   {name:'ลำไส้อักเสบ/พีไอเอ (Lawsonia)', signs:'ขี้เหลวสีดำเทา หรือมีเลือดสด · โตช้า ผอม แต่ยังพอกินได้', drugs:['mutalin','amox']},
+   {name:'ซาลโมเนลลา (Salmonella)', signs:'ขี้เหลวเหม็นจัด อาจมีเลือด · ไข้สูง ซึม ไม่กิน', drugs:['naoen','amox']},
+ ]},
+ {cat:'ทางเดินหายใจ (ไอ / หอบ)', icon:'🫁', items:[
+   {name:'ปอดบวมมัยโคพลาสมา', signs:'ไอแห้งเรื้อรัง (ชัดตอนไล่ให้ลุกวิ่ง) · โตช้า ไข้ต่ำ · เป็นทั้งเล้าแบบเรื้อรัง', drugs:['mutalin','naoen'], tip:'Tiamulin เจาะจงมัยโคพลาสมา'},
+   {name:'APP — ปอดอักเสบเฉียบพลัน', signs:'หอบรุนแรง อ้าปากหายใจ · ไข้สูง · ตายเฉียบพลัน ปาก/หูเขียวคล้ำ', drugs:['naoen','amox','penstrep'], tip:'⚡ เร่งด่วน! ฉีดทันที + ลดไข้ Novalcin'},
+   {name:'ปอดบวมพาสเจอเรลลา (แทรกซ้อน)', signs:'ไอ หอบ ไข้ มีขี้มูก · มักตามหลังไวรัส/มัยโคพลาสมา', drugs:['penstrep','amox','naoen']},
+   {name:'PRRS / ไข้หวัดหมู (ไวรัส)', signs:'ไข้ ไอ ซึม กินน้อย · แม่พันธุ์แท้ง', drugs:['novalcin'], tip:'⚠️ ไวรัส — ยาปฏิชีวนะไม่ฆ่าไวรัส ใช้แค่กันติดเชื้อแทรก + ลดไข้ + ปรึกษาสัตวแพทย์'},
+ ]},
+ {cat:'ไข้ / ซึม / ไม่กิน', icon:'🌡️', items:[
+   {name:'ติดเชื้อแบคทีเรีย + ไข้', signs:'ไข้สูง >40.5°C · ซึม นอนสุมกัน ไม่กินอาหาร', drugs:['novalcin','naoen','amox','penstrep'], tip:'ลดไข้ Novalcin + ปฏิชีวนะตามระบบที่สงสัย'},
+   {name:'Strep suis (สเตรปโตค็อกคัส)', signs:'ไข้ · เดินเซ ชัก คอแข็ง (เยื่อหุ้มสมองอักเสบ) · ข้อบวม', drugs:['penstrep','amox'], tip:'⚡ เร่งด่วน · ⚠️ คนติดได้ ระวังการสัมผัส'},
+ ]},
+ {cat:'ขา / ข้อ / เดิน', icon:'🦵', items:[
+   {name:'ข้ออักเสบ (Strep/Mycoplasma)', signs:'ขาเป๋ เดินกะเผลก · ข้อบวม ร้อน · ไม่ยอมลุก', drugs:['penstrep','amox','mutalin']},
+   {name:'อีริซิเพลาส (Erysipelas)', signs:'ไข้สูง · ผื่นแดงนูนรูปสี่เหลี่ยม/ข้าวหลามตัดบนผิว · ข้ออักเสบ', drugs:['penstrep','amox'], tip:'เพนนิซิลลิน (Pen-Strep) ได้ผลดีสุด'},
+ ]},
+ {cat:'ผิวหนัง / แผล', icon:'🩹', items:[
+   {name:'แผลอักเสบ / ฝีหนอง', signs:'แผลบวมแดง มีหนอง · จากบาดแผล/กัดกัน', drugs:['penstrep','amox','naoen']},
+   {name:'ผิวหนังเยิ้มมัน (Greasy pig)', signs:'ผิวมันเยิ้ม เป็นสะเก็ดสีน้ำตาล · พบในลูกหมู', drugs:['amox','naoen']},
+ ]},
+];
+
+function drugChip(id){
+  const d=DRUG_BY_ID[id]; if(!d) return '';
+  const fever = d.type.indexOf('ลดไข้')>=0;
+  const c = fever?'#7c3aed':'#0e7490', bg = fever?'#ede9fe':'#cffafe';
+  return `<span style="display:inline-block;background:${bg};color:${c};font-size:11px;font-weight:600;padding:2px 8px;border-radius:7px;margin:2px 3px 2px 0">${d.name}</span>`;
+}
+
+function renderMeds(){
+  const db=loadDB(), batch=getActiveBatch(db);
+  const week=batch?currentFeedWeek(batch.startDate,batch.intakeAgeWeeks):null;
+  const age=week?week+3:null;
+  const estW=estWeightForAge(age);
+  const pigCount=batch?calcPigCount(batch.pigEvents||[]).count:0;
+
+  const batchCard = batch ? `<div class="card" style="background:linear-gradient(135deg,#0e7490,#06b6d4);color:#fff">
+    <div style="font-size:12px;font-weight:700;margin-bottom:6px">🐷 หมูรุ่นนี้ (${batch.name})</div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:13px">
+      <div>อายุ ~<b>${age||'—'}</b> สัปดาห์</div>
+      <div>น้ำหนัก ~<b>${estW?Math.round(estW):'—'}</b> กก./ตัว</div>
+      <div>${pigCount>0?fmt(pigCount)+' ตัว':'—'}</div>
+    </div>
+    <div style="font-size:10.5px;opacity:.9;margin-top:6px">* น้ำหนักเป็นค่าประมาณจากอายุ — ปรับตามจริงหน้างานได้</div>
+  </div>` : '';
+
+  const drugRows = DRUGS.map(d=>{
+    let dose='';
+    if(d.form==='inject' && estW) dose=`<b>${(estW*d.mlPerKg).toFixed(1)} มล./ตัว</b>`;
+    else if(d.form==='oral' && estW && pigCount>0) dose=`<b>${Math.round(pigCount*estW*d.mgPerKg/1000)} ก./วัน</b> (ทั้งเล้า ${fmt(pigCount)} ตัว)`;
+    else if(d.form==='oral' && estW) dose=`<b>${(estW*d.mgPerKg/1000).toFixed(2)} ก./ตัว/วัน</b>`;
+    const fever = d.type.indexOf('ลดไข้')>=0;
+    return `<div class="card" style="padding:12px;border-left:4px solid ${fever?'#7c3aed':'#0e7490'}">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+        <div style="font-size:14px;font-weight:800">${d.name}</div>
+        <div style="font-size:10px;color:#6b7280">${d.type}</div>
+      </div>
+      <div style="font-size:11px;color:#6b7280;margin-bottom:6px">${d.active} · ${d.route}</div>
+      <div style="font-size:12.5px">💊 ${d.doseText}</div>
+      ${dose?`<div style="margin-top:6px;background:#ecfeff;border-radius:8px;padding:7px 10px;font-size:13px;color:#0e7490">👉 หมูรุ่นนี้: ${dose}</div>`:''}
+      <div style="font-size:11px;color:#b45309;margin-top:6px">⏳ หยุดยาก่อนขาย: ${d.wd}</div>
+      ${d.warn?`<div style="font-size:11px;color:#dc2626;margin-top:4px;font-weight:600">${d.warn}</div>`:''}
+      ${d.note?`<div style="font-size:11px;color:#6b7280;margin-top:4px">${d.note}</div>`:''}
+    </div>`;
+  }).join('');
+
+  const dxSections = DISEASES.map(g=>`
+    <div style="margin-top:14px">
+      <div style="font-size:14px;font-weight:800;margin-bottom:6px">${g.icon} ${g.cat}</div>
+      ${g.items.map(it=>`<div class="card" style="padding:12px">
+        <div style="font-size:13.5px;font-weight:700;color:#0f172a">${it.name}</div>
+        <div style="font-size:12.5px;color:#475569;margin:4px 0 6px">${it.signs}</div>
+        <div>${it.drugs.map(drugChip).join('')}</div>
+        ${it.tip?`<div style="font-size:11.5px;color:#0e7490;margin-top:5px">💡 ${it.tip}</div>`:''}
+      </div>`).join('')}
+    </div>`).join('');
+
+  document.getElementById('medsBody').innerHTML = `
+    <div class="card" style="background:#fef2f2;border:1px solid #fecaca">
+      <div style="font-size:12.5px;color:#991b1b;line-height:1.6">
+        ⚠️ <b>คู่มือเบื้องต้น ไม่ใช่คำวินิจฉัยของสัตวแพทย์</b> — อาการหนัก/ไม่แน่ใจ/ตายผิดปกติหลายตัว ให้ปรึกษาสัตวแพทย์หรือแจ้งปศุสัตว์ทันที<br>
+        • เช็ก<b>ขนาดยา + ระยะหยุดยา</b>จากฉลากขวดจริงเสมอ · หยุดยาก่อนจับขายตามกำหนด (กันยาตกค้างในเนื้อ)<br>
+        • โรคไวรัสร้ายแรง (ASF/PRRS/FMD) และพยาธิ/หิด — ยาปฏิชีวนะกลุ่มนี้ไม่ช่วย
+      </div>
+    </div>
+    ${batchCard}
+    <div class="stitle" style="margin-top:6px">🔍 วินิจฉัยโรคจากอาการ</div>
+    ${dxSections}
+    <div class="stitle" style="margin-top:16px">💉 ยาที่มี + ขนาดสำหรับหมูรุ่นนี้</div>
+    ${drugRows}
+  `;
+}
 
 // ─── WEATHER (Open-Meteo — ฟรี ไม่ต้องใช้ API key) ──────────────────────────
 // อากาศเก็บใน db.weatherLog → sync ขึ้น cloud อัตโนมัติผ่าน saveDB
