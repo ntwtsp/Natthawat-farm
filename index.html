@@ -410,13 +410,13 @@
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
     <span>ประวัติ</span>
   </button>
-  <button class="nb" onclick="showPage('expense',this)">
-    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
-    <span>ค่าใช้จ่าย</span>
-  </button>
   <button class="nb" onclick="showPage('meds',this)">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.5 20.5a5.5 5.5 0 0 1-3.89-9.39l6-6a5.5 5.5 0 0 1 7.78 7.78l-6 6a5.47 5.47 0 0 1-3.89 1.61Zm2.83-14.83-3.66 3.66 5 5 3.66-3.66a3.5 3.5 0 0 0-4.95-4.95Z"/></svg>
     <span>ยา</span>
+  </button>
+  <button class="nb" onclick="showPage('expense',this)">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+    <span>ค่าใช้จ่าย</span>
   </button>
 </nav>
 
@@ -1760,10 +1760,10 @@ function estWeightForAge(age){
 }
 
 const DRUGS = [
-  {id:'naoen',   name:'NAO-EN 50',       active:'Enrofloxacin 50 มก./มล.', type:'ปฏิชีวนะ', form:'inject', route:'ฉีดเข้ากล้าม/ใต้ผิวหนัง', mlPerKg:0.05,  doseText:'2.5 มก./กก. (≈ 1 มล. ต่อ 20 กก.) วันละครั้ง 3–5 วัน', wd:'เนื้อ ~10–14 วัน'},
-  {id:'penstrep',name:'PENDISTREP L.A.', active:'Penicillin + Streptomycin', type:'ปฏิชีวนะ', form:'inject', route:'ฉีดเข้ากล้าม', mlPerKg:0.04, doseText:'≈ 1 มล. ต่อ 25 กก. ทุก 48 ชม.', wd:'เนื้อ ~23–30 วัน'},
-  {id:'mutalin', name:'MUTALIN 20%',     active:'Tiamulin 162 มก./มล.', type:'ปฏิชีวนะ', form:'inject', route:'ฉีดเข้ากล้าม', mlPerKg:0.074, doseText:'10–15 มก./กก. (≈ 1 มล. ต่อ 13 กก.) วันละครั้ง', wd:'เนื้อ — เช็กฉลาก', warn:'⚠️ ห้ามใช้ร่วมยาไอโอโนฟอร์ (โมเนนซิน/ซาลิโนมัยซิน/นาราซิน) — เป็นพิษถึงตาย'},
-  {id:'novalcin',name:'NOVALCIN',        active:'Dipyrone 500 มก./มล.', type:'ลดไข้/แก้ปวด', form:'inject', route:'ฉีดเข้ากล้าม', mlPerKg:0.05, doseText:'~25 มก./กก. (≈ 1 มล. ต่อ 20 กก.) เมื่อมีไข้/ปวด', wd:'เนื้อ — เช็กฉลาก', note:'ไม่ใช่ยาฆ่าเชื้อ — ลดไข้/แก้ปวด ใช้ร่วมกับปฏิชีวนะ'},
+  {id:'naoen',   name:'NAO-EN 50',       active:'Enrofloxacin 50 มก./มล.', type:'ปฏิชีวนะ', form:'inject', route:'ฉีดเข้ากล้าม/ใต้ผิวหนัง', mlPerKg:0.025, doseText:'≈ 1 มล. ต่อ 40 กก. วันละครั้ง 3–5 วัน', wd:'เนื้อ ~10–14 วัน'},
+  {id:'penstrep',name:'PENDISTREP L.A.', active:'Penicillin + Streptomycin', type:'ปฏิชีวนะ', form:'inject', route:'ฉีดเข้ากล้าม', mlPerKg:0.025, doseText:'≈ 1 มล. ต่อ 40 กก. ทุก 48 ชม.', wd:'เนื้อ ~23–30 วัน'},
+  {id:'mutalin', name:'MUTALIN 20%',     active:'Tiamulin 162 มก./มล.', type:'ปฏิชีวนะ', form:'inject', route:'ฉีดเข้ากล้าม', mlPerKg:0.025, doseText:'≈ 1 มล. ต่อ 40 กก. วันละครั้ง', wd:'เนื้อ — เช็กฉลาก', warn:'⚠️ ห้ามใช้ร่วมยาไอโอโนฟอร์ (โมเนนซิน/ซาลิโนมัยซิน/นาราซิน) — เป็นพิษถึงตาย'},
+  {id:'novalcin',name:'NOVALCIN',        active:'Dipyrone 500 มก./มล.', type:'ลดไข้/แก้ปวด', form:'inject', route:'ฉีดเข้ากล้าม', mlPerKg:0.025, doseText:'≈ 1 มล. ต่อ 40 กก. เมื่อมีไข้/ปวด', wd:'เนื้อ — เช็กฉลาก', note:'ไม่ใช่ยาฆ่าเชื้อ — ลดไข้/แก้ปวด ใช้ร่วมกับปฏิชีวนะ'},
   {id:'neonova', name:'NEONOVA-500',     active:'Neomycin 500 ก./กก.', type:'ปฏิชีวนะ (ลำไส้)', form:'oral', route:'ผสมน้ำดื่ม', mgPerKg:30, doseText:'30 มก.ผลิตภัณฑ์/กก.น้ำหนักตัว/วัน 3–5 วัน', wd:'เนื้อสุกร 20 วัน'},
   {id:'amox',    name:'AMOXICILLIN-80%', active:'Amoxicillin 697 มก./ก.', type:'ปฏิชีวนะ', form:'oral', route:'ผสมอาหาร/น้ำ', mgPerKg:20, doseText:'~20 มก.ผลิตภัณฑ์/กก.น้ำหนักตัว/วัน 3–5 วัน', wd:'เนื้อ — เช็กฉลาก'},
 ];
