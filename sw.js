@@ -1,8 +1,8 @@
-const CACHE = 'pig-feed-v24';
-const ASSETS = ['/Natthawat-farm/', '/Natthawat-farm/index.html'];
+const CACHE = 'pig-feed-v25';
+const ASSETS = ['./', './index.html'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).catch(() => {}));
   self.skipWaiting();
 });
 
@@ -14,7 +14,20 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request))
-  );
+  const req = e.request;
+  if (req.method !== 'GET') return;
+  const accept = req.headers.get('accept') || '';
+  // Network-first สำหรับหน้าเว็บ → ออนไลน์ได้ของใหม่เสมอ, ออฟไลน์ค่อยใช้แคช
+  if (req.mode === 'navigate' || accept.includes('text/html')) {
+    e.respondWith(
+      fetch(req).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
+        return res;
+      }).catch(() => caches.match(req).then(r => r || caches.match('./index.html')))
+    );
+    return;
+  }
+  // Cache-first สำหรับไฟล์อื่น (ไอคอน ฯลฯ)
+  e.respondWith(caches.match(req).then(r => r || fetch(req)));
 });
