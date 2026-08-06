@@ -297,6 +297,9 @@
   <div class="stitle">กราฟการใช้ 7 วัน</div>
   <div class="card" style="padding:12px"><canvas id="chartCanvas" height="120" style="width:100%"></canvas></div>
 
+  <button onclick="openMeds()" style="width:100%;padding:15px;background:linear-gradient(135deg,#0e7490,#06b6d4);color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;box-shadow:0 4px 14px rgba(14,116,144,.35);display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px">
+    <span style="font-size:20px">💊</span> คู่มือยา + วินิจฉัยโรค
+  </button>
   <button onclick="exportToExcel()" style="width:100%;padding:15px;background:linear-gradient(135deg,#1d4ed8,#2563eb);color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;box-shadow:0 4px 14px rgba(37,99,235,.35);display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:4px">
     <span style="font-size:20px">📊</span> ส่งออกข้อมูล Excel
   </button>
@@ -410,10 +413,6 @@
   <button class="nb" onclick="showPage('history',this)">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
     <span>ประวัติ</span>
-  </button>
-  <button class="nb" onclick="showPage('meds',this)">
-    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.5 20.5a5.5 5.5 0 0 1-3.89-9.39l6-6a5.5 5.5 0 0 1 7.78 7.78l-6 6a5.47 5.47 0 0 1-3.89 1.61Zm2.83-14.83-3.66 3.66 5 5 3.66-3.66a3.5 3.5 0 0 0-4.95-4.95Z"/></svg>
-    <span>ยา</span>
   </button>
   <button class="nb" onclick="showPage('expense',this)">
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
@@ -747,7 +746,16 @@ function showPage(name, btn) {
   if(name==='history'){renderHistory(curFilter);renderPigHistory();}
   if(name==='add') resetForm();
   if(name==='expense') renderExpense();
-  if(name==='meds') renderMeds();
+}
+
+// เปิดหน้ายา (จากปุ่มหน้าหลัก) — หน้าเต็ม มีปุ่มย้อนกลับ
+function openMeds(){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-meds').classList.add('active');
+  curPage='meds';
+  renderMeds();
+  window.scrollTo(0,0);
 }
 
 function switchHistTab(tab,btn) {
@@ -1854,6 +1862,7 @@ function renderMeds(){
     </div>`).join('');
 
   document.getElementById('medsBody').innerHTML = `
+    <button onclick="showPage('home', document.querySelectorAll('.nb')[0])" style="background:none;border:none;color:#0e7490;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;padding:4px 0;margin-bottom:6px">← กลับหน้าหลัก</button>
     ${batchCard}
     <div class="stitle" style="margin-top:6px">🔍 วินิจฉัยโรคจากอาการ</div>
     ${dxSections}
