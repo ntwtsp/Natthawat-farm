@@ -369,6 +369,7 @@
     <button class="tab" onclick="switchHistTab('pigs',this)">🐷 หมู</button>
   </div>
   <div id="htab-feed">
+    <div id="farmLocBar"></div>
     <div class="hf" id="filterRow">
       <button class="fchip active" data-f="all">ทั้งหมด</button>
       <button class="fchip" data-f="7">7 วัน</button>
@@ -1283,6 +1284,7 @@ document.getElementById('filterRow').querySelectorAll('.fchip').forEach(btn=>{
 });
 
 function renderHistory(filter){
+  renderFarmLocBar();
   const db=loadDB(), batch=getActiveBatch(db);
   const all=batch?batch.entries:[];
   const pigEvents=batch?batch.pigEvents||[]:[];
@@ -1873,22 +1875,40 @@ function getPosition(){
   });
 }
 
-// ดึงอากาศรายชั่วโมงของวันนี้ (Open-Meteo คืนทั้งวัน: ชม.ที่ผ่านมา=จริง, ข้างหน้า=พยากรณ์)
-async function fetchWeatherToday(){
+// ตั้งพิกัดฟาร์ม (กดตอนอยู่ที่ฟาร์ม) — เก็บลง db.farmLoc แล้วอากาศจะดึงจากพิกัดนี้เสมอ
+async function setFarmLocation(){
+  showToast('📍 กำลังอ่านตำแหน่ง...');
+  try{
+    const pos = await new Promise((res,rej)=>{
+      if(!navigator.geolocation) return rej(new Error('no geo'));
+      navigator.geolocation.getCurrentPosition(
+        p=>res({lat:p.coords.latitude, lon:p.coords.longitude}),
+        e=>rej(e), {enableHighAccuracy:true, timeout:15000, maximumAge:0});
+    });
+    const db = loadDB();
+    db.farmLoc = { lat:+pos.lat.toFixed(4), lon:+pos.lon.toFixed(4), setAt:new Date().toISOString() };
+    saveDB(db);
+    showToast('✅ ตั้งพิกัดฟาร์มแล้ว');
+    fetchWeatherToday(true).then(()=>{ renderFarmLocBar(); if(curPage==='history') renderHistory(curFilter); });
+  }catch(e){ showToast('⚠️ อ่านตำแหน่งไม่ได้ — อนุญาตตำแหน่งแล้วลองใหม่'); }
+}
+
+// ดึงอากาศรายชั่วโมงของวันนี้ จาก "พิกัดฟาร์ม" (ไม่ใช่ตำแหน่งโทรศัพท์) — Open-Meteo คืนทั้งวัน
+async function fetchWeatherToday(force){
   const today = new Date().toISOString().split('T')[0];
   const db = loadDB(); const log = db.weatherLog || (db.weatherLog = {});
   const existing = log[today];
-  if(existing && existing.updatedAt && (Date.now()-new Date(existing.updatedAt).getTime() < 30*60000)) return existing;
-  let pos;
-  try{ pos = await getPosition(); }catch(e){ return existing||null; }
+  if(!force && existing && existing.updatedAt && (Date.now()-new Date(existing.updatedAt).getTime() < 30*60000)) return existing;
+  const loc = db.farmLoc;
+  if(!loc) return existing||null;   // ยังไม่ตั้งพิกัดฟาร์ม → ไม่ดึงอากาศ (ไม่ขอ GPS ทุกวัน)
   try{
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${pos.lat}&longitude=${pos.lon}&hourly=temperature_2m,relative_humidity_2m&timezone=auto&forecast_days=1`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&hourly=temperature_2m,relative_humidity_2m&timezone=auto&forecast_days=1`;
     const r = await fetch(url);
     if(!r.ok) throw new Error('http '+r.status);
     const j = await r.json();
     const times=j.hourly.time, temps=j.hourly.temperature_2m, rhs=j.hourly.relative_humidity_2m;
     const hours = times.map((t,i)=>({ h:new Date(t).getHours(), t:temps[i], rh:rhs[i] }));
-    log[today] = { lat:+pos.lat.toFixed(3), lon:+pos.lon.toFixed(3), updatedAt:new Date().toISOString(), hours };
+    log[today] = { lat:loc.lat, lon:loc.lon, updatedAt:new Date().toISOString(), hours };
     const keys = Object.keys(log).sort(); while(keys.length>400){ delete log[keys.shift()]; }
     saveDB(db);   // เก็บลง localStorage + sync ขึ้น cloud
     return log[today];
@@ -1902,6 +1922,22 @@ function weatherSummary(date){
   const rh = rec.hours.map(h=>h.rh).filter(v=>v!=null);
   if(!ts.length) return null;
   return { tMin:Math.min(...ts), tMax:Math.max(...ts), rhAvg:rh.length?Math.round(rh.reduce((a,b)=>a+b)/rh.length):null };
+}
+
+function renderFarmLocBar(){
+  const el=document.getElementById('farmLocBar'); if(!el) return;
+  const loc=loadDB().farmLoc;
+  if(loc){
+    el.innerHTML=`<div style="display:flex;align-items:center;gap:8px;background:#ecfeff;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#0e7490">
+      <span>📍 พิกัดฟาร์ม: ${loc.lat}, ${loc.lon}</span>
+      <button onclick="setFarmLocation()" style="margin-left:auto;background:#0e7490;color:#fff;border:none;border-radius:7px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">เปลี่ยน</button>
+    </div>`;
+  } else {
+    el.innerHTML=`<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12.5px;color:#9a3412">
+      📍 <b>ตั้งพิกัดฟาร์มเพื่อเก็บอากาศ</b> — ระบบจะดึงอากาศตามพิกัดฟาร์ม ไม่ใช่ตำแหน่งโทรศัพท์ (ไปต่างจังหวัดก็ยังได้อากาศฟาร์ม · ไม่ขอ GPS ทุกวัน)
+      <button onclick="setFarmLocation()" style="display:block;margin-top:8px;width:100%;background:#ea580c;color:#fff;border:none;border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">📍 ตั้งพิกัดฟาร์ม (กดตอนอยู่ที่ฟาร์ม)</button>
+    </div>`;
+  }
 }
 
 function openWeatherModal(date){

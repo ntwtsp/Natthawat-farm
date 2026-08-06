@@ -1,4 +1,4 @@
-const CACHE = 'pig-feed-v25';
+const CACHE = 'pig-feed-v26';
 const ASSETS = ['./', './index.html'];
 
 self.addEventListener('install', e => {
